@@ -3,13 +3,13 @@ package generate
 import "trax/internal/docs"
 
 var (
-	Docs = docs.Docs{
+	gDocs = docs.Docs{
 		Use:     "generate",
 		Aliases: []string{"g"},
 		Short:   "Generate Typescript artifacts",
 	}
 
-	RoutesDocs = docs.Docs{
+	gRoutesDocs = docs.Docs{
 		Use:   "routes",
 		Short: "Generate type-safe route helpers",
 		Long: docs.Paragraph(

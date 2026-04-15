@@ -9,27 +9,35 @@ import (
 	appErr "trax/internal/errors"
 )
 
-func LoadConfig() error {
-	cfgFile := viper.GetString("config")
-
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.SetConfigName(".trax.config")
-		viper.AddConfigPath(".")
-	}
+func LoadConfig(cfgFile string) error {
+	viper.SetDefault("debug", false)
 
 	viper.SetEnvPrefix("TRAX")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err != nil {
+	if cfgFile == "" {
+		viper.SetConfigName("trax")
+		viper.AddConfigPath(".")
 
-		var notFound viper.ConfigFileNotFoundError
-		if errors.As(err, &notFound) {
+		return nil
+	}
+
+	viper.SetConfigFile(cfgFile)
+	if err := viper.ReadInConfig(); err != nil {
+		isFileNotFound := strings.Contains(err.Error(), "no such file")
+
+		if isFileNotFound {
 			return appErr.NewConfigNotFoundError(
 				"config",
-				"config file not found, using defaults",
+				err.Error(),
+			)
+		}
+
+		if errors.Is(err, viper.ConfigFileNotFoundError{}) {
+			return appErr.NewConfigNotFoundError(
+				"config",
+				"config file not found",
 			)
 		}
 

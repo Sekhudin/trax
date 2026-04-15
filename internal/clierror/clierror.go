@@ -2,35 +2,36 @@ package clierror
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
-
-	appErr "trax/internal/errors"
+	"io"
 
 	"github.com/spf13/viper"
+
+	appErr "trax/internal/errors"
 )
 
-func printText(err error) {
+func printText(w io.Writer, err error) {
 	switch e := err.(type) {
 	case *appErr.CoreError:
-		fmt.Printf("\n❌ [%s]", e.Code)
+		fmt.Fprintf(w, "\n❌ [%s]", e.Code)
 
 		if e.Scope != "" {
-			fmt.Printf(" (%s)", e.Scope)
+			fmt.Fprintf(w, " (%s)", e.Scope)
 		}
 
-		fmt.Printf(" %s\n", e.Message)
+		fmt.Fprintf(w, " %s\n", e.Message)
 
 		if e.Err != nil {
-			fmt.Printf("   ↳ %v\n", e.Err)
+			fmt.Fprintf(w, "   ↳ %v\n", e.Err)
 		}
 
 	default:
-		fmt.Printf("❌ %v\n", err)
+		fmt.Fprintf(w, "❌ %v\n", err)
 	}
 }
 
-func printJSON(err error) {
+func printJSON(w io.Writer, err error) {
 	payload := map[string]any{
 		"error": err.Error(),
 	}
@@ -46,18 +47,35 @@ func printJSON(err error) {
 	}
 
 	b, _ := json.MarshalIndent(payload, "", "  ")
-	fmt.Fprintln(os.Stderr, "\n"+string(b))
+	fmt.Fprintln(w, "\n"+string(b))
 }
 
-func Print(err error) {
+func Print(w io.Writer, err error) {
 	if err == nil {
 		return
 	}
 
 	if viper.GetBool("debug") {
-		printJSON(err)
+		printJSON(w, err)
 		return
 	}
 
-	printText(err)
+	printText(w, err)
+}
+
+func ExitCode(err error) int {
+	var ce *appErr.CoreError
+	if errors.As(err, &ce) {
+		switch ce.Code {
+		case appErr.ErrValidation:
+			return 2
+		case appErr.ErrConfigNotFound:
+			return 3
+		case appErr.ErrConfigLoad:
+			return 4
+		default:
+			return 1
+		}
+	}
+	return 1
 }

@@ -11,33 +11,44 @@ import (
 	"trax/internal/bootstrap"
 	"trax/internal/clierror"
 	"trax/internal/docs"
+
+	appErr "trax/internal/errors"
 )
 
-var command = docs.ApplyDocs(Docs, &cobra.Command{
+var root = docs.ApplyDocs(Docs, &cobra.Command{
 	SilenceUsage:      true,
 	SilenceErrors:     true,
 	PersistentPreRunE: persistentPreRunE,
 })
 
 func persistentPreRunE(cmd *cobra.Command, args []string) error {
-	return bootstrap.LoadConfig()
+	flags := cmd.Flags()
+
+	cfgFile, err := flags.GetString("config")
+	if err != nil {
+		return appErr.NewFlagReadError("config", err)
+	}
+	return bootstrap.LoadConfig(cfgFile)
 }
 
 func Execute() {
-	if err := command.Execute(); err != nil {
-		clierror.Print(err)
-		os.Exit(1)
+	if cmd, err := root.ExecuteC(); err != nil {
+		clierror.Print(cmd.ErrOrStderr(), err)
+		os.Exit(clierror.ExitCode(err))
 	}
 }
 
 func init() {
-	pFlags := command.PersistentFlags()
+	pFlags := root.PersistentFlags()
 
-	pFlags.String("config", "", "Path to .trax.config file")
-	pFlags.BoolP("debug", "d", false, "show debug info")
+	pFlags.String("config", "", "Path to config file")
+	pFlags.BoolP("debug", "d", false, "Show debug info")
 
-	viper.BindPFlag("config", pFlags.Lookup("config"))
 	viper.BindPFlag("debug", pFlags.Lookup("debug"))
 
-	command.AddCommand(generate.Command, show.Command)
+	root.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
+		return appErr.NewValidationError("flag", err.Error())
+	})
+
+	root.AddCommand(generate.Cmd, show.Cmd)
 }

@@ -6,7 +6,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type Group struct {
+	ID    string
+	Title string
+}
+
 type Docs struct {
+	GroupID string
 	Use     string
 	Aliases []string
 	Version string
@@ -23,7 +29,18 @@ func Paragraph(lines ...string) string {
 	return strings.Join(lines, "\n\n")
 }
 
+func ApplyGroup(g Group) *cobra.Group {
+	return &cobra.Group{
+		ID:    g.ID,
+		Title: g.Title,
+	}
+}
+
 func ApplyDocs(d Docs, cmd *cobra.Command) *cobra.Command {
+	if d.GroupID != "" {
+		cmd.GroupID = d.GroupID
+	}
+
 	if d.Use != "" {
 		cmd.Use = d.Use
 	}
