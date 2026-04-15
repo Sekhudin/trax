@@ -2,11 +2,15 @@
 
 Powering TypeScript project workflows
 
+---
+
 ## Overview
 
 Trax is a CLI tool for automating TypeScript project workflows.
 
 It helps you generate and manage project structures with consistent conventions.
+
+---
 
 ## Features
 
@@ -15,17 +19,23 @@ It helps you generate and manage project structures with consistent conventions.
 - Inspect project structure
 - Simple configuration via `.trax.config`
 
+---
+
 ## Installation
 
 ```bash
 go install github.com/your-username/trax@latest
 ```
 
+---
+
 ## Usage
 
 ```bash
 trax --help
 ```
+
+---
 
 ## Configuration
 
@@ -35,6 +45,8 @@ You can also specify a custom config file:
 ```bash
 trax --config=path/to/config.json
 ```
+
+---
 
 # Support
 
