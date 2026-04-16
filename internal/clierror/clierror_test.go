@@ -14,7 +14,6 @@ import (
 func reset(t *testing.T) {
 	t.Helper()
 	viper.Reset()
-	viper.SetDefault("debug", false)
 }
 
 func TestPrintText_CoreError(t *testing.T) {

@@ -24,8 +24,8 @@ var root = docs.ApplyDocs(rootDocs, &cobra.Command{
 func init() {
 	pFlags := root.PersistentFlags()
 
-	pFlags.String("config", "", "Path to config file")
-	pFlags.BoolP("debug", "d", false, "Show debug info")
+	pFlags.String("config", "", "path to config file")
+	pFlags.BoolP("debug", "d", false, "show debug info")
 
 	viper.BindPFlag("debug", pFlags.Lookup("debug"))
 

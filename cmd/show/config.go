@@ -20,7 +20,7 @@ var sConfigCmd = docs.ApplyDocs(sConfigDocs, &cobra.Command{
 func init() {
 	flags := sConfigCmd.Flags()
 
-	flags.Bool("json", false, "Output as json")
+	flags.Bool("json", false, "output as json")
 }
 
 func sConfigRunE(cmd *cobra.Command, args []string) error {

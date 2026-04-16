@@ -21,5 +21,6 @@
 
 
 # extra
-/trax
+/tx*
+/trax*
 /coverage*
