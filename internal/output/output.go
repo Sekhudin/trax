@@ -83,11 +83,11 @@ func (c *Context) Warn(scope, msg string) {
 func (c *Context) AsJSON(data map[string]any) error {
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return appErr.NewInternalError("config", "failed to marshal config to json", err)
+		return appErr.NewInternalError("config", "failed to marshal data to json", err)
 	}
 
 	if _, err := fmt.Fprintln(c.Writer, string(b)); err != nil {
-		return appErr.NewIOError("stdout", "failed to write json output", err)
+		return appErr.NewIOError("stdout", "failed to show output", err)
 	}
 
 	return nil
@@ -141,7 +141,7 @@ func (c *Context) printFlatValue(key string, val any) error {
 
 	default:
 		if _, err := fmt.Fprintf(c.Writer, "%s = %v\n", key, v); err != nil {
-			return appErr.NewIOError("stdout", "failed to write config output", err)
+			return appErr.NewIOError("stdout", "failed to show output", err)
 		}
 	}
 

@@ -11,27 +11,35 @@ import (
 	appErr "trax/internal/errors"
 )
 
-func printText(w io.Writer, err error) {
+type Context struct {
+	Writer io.Writer
+}
+
+func New(w io.Writer) *Context {
+	return &Context{Writer: w}
+}
+
+func (c *Context) PrintText(err error) {
 	switch e := err.(type) {
 	case *appErr.CoreError:
-		fmt.Fprintf(w, "❌ [%s]", e.Code)
+		fmt.Fprintf(c.Writer, "❌ [%s]", e.Code)
 
 		if e.Scope != "" {
-			fmt.Fprintf(w, " (%s)", e.Scope)
+			fmt.Fprintf(c.Writer, " (%s)", e.Scope)
 		}
 
-		fmt.Fprintf(w, " %s\n", e.Message)
+		fmt.Fprintf(c.Writer, " %s\n", e.Message)
 
 		if e.Err != nil {
-			fmt.Fprintf(w, "   ↳ %v\n", e.Err)
+			fmt.Fprintf(c.Writer, "   ↳ %v\n", e.Err)
 		}
 
 	default:
-		fmt.Fprintf(w, "❌ %v\n", err)
+		fmt.Fprintf(c.Writer, "❌ %v\n", err)
 	}
 }
 
-func printJSON(w io.Writer, err error) {
+func (c *Context) PrintJSON(err error) {
 	payload := map[string]any{
 		"error": err.Error(),
 	}
@@ -47,23 +55,23 @@ func printJSON(w io.Writer, err error) {
 	}
 
 	b, _ := json.MarshalIndent(payload, "", "  ")
-	fmt.Fprintln(w, string(b))
+	fmt.Fprintln(c.Writer, string(b))
 }
 
-func Print(w io.Writer, err error) {
+func (c *Context) Print(err error) {
 	if err == nil {
 		return
 	}
 
 	if viper.GetBool("debug") {
-		printJSON(w, err)
+		c.PrintJSON(err)
 		return
 	}
 
-	printText(w, err)
+	c.PrintText(err)
 }
 
-func ExitCode(err error) int {
+func (c *Context) ExitCode(err error) int {
 	var ce *appErr.CoreError
 	if errors.As(err, &ce) {
 		switch ce.Code {

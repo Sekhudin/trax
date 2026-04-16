@@ -48,7 +48,9 @@ func rootPersistentPreRunE(cmd *cobra.Command, args []string) error {
 
 func Execute() {
 	if cmd, err := root.ExecuteC(); err != nil {
-		clierror.Print(cmd.ErrOrStderr(), err)
-		os.Exit(clierror.ExitCode(err))
+		cErr := clierror.New(cmd.ErrOrStderr())
+
+		cErr.Print(err)
+		os.Exit(cErr.ExitCode(err))
 	}
 }

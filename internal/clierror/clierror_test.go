@@ -11,180 +11,173 @@ import (
 	appErr "trax/internal/errors"
 )
 
-func reset(t *testing.T) {
+func resetViper(t *testing.T) {
 	t.Helper()
 	viper.Reset()
 }
 
-func TestPrintText_CoreError(t *testing.T) {
-	reset(t)
+func TestNew(t *testing.T) {
+	resetViper(t)
 
-	var buf bytes.Buffer
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
+
+	if ctx.Writer != buf {
+		t.Fatal("writer not set")
+	}
+}
+
+func TestPrintText_CoreError_Simple(t *testing.T) {
+	resetViper(t)
+
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
+
+	err := &appErr.CoreError{
+		Code:    appErr.ErrConfigLoad,
+		Message: "failed",
+	}
+
+	ctx.PrintText(err)
+
+	out := buf.String()
+	if !strings.Contains(out, "❌ [CONFIG_LOAD_FAILED] failed") {
+		t.Fatal(out)
+	}
+}
+
+func TestPrintText_CoreError_WithScopeAndCause(t *testing.T) {
+	resetViper(t)
+
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
 	err := &appErr.CoreError{
 		Code:    appErr.ErrConfigLoad,
 		Scope:   "config",
-		Message: "failed to load",
-		Err:     errors.New("disk error"),
+		Message: "failed",
+		Err:     errors.New("root cause"),
 	}
 
-	printText(&buf, err)
+	ctx.PrintText(err)
 
 	out := buf.String()
-
-	if !strings.Contains(out, "[CONFIG_LOAD_FAILED]") {
-		t.Fatal("missing code")
-	}
-
-	if !strings.Contains(out, "(config)") {
-		t.Fatal("missing scope")
-	}
-
-	if !strings.Contains(out, "failed to load") {
-		t.Fatal("missing message")
-	}
-
-	if !strings.Contains(out, "disk error") {
-		t.Fatal("missing cause")
+	if !strings.Contains(out, "(config)") ||
+		!strings.Contains(out, "root cause") {
+		t.Fatal(out)
 	}
 }
 
 func TestPrintText_DefaultError(t *testing.T) {
-	reset(t)
+	resetViper(t)
 
-	var buf bytes.Buffer
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	err := errors.New("generic error")
+	ctx.PrintText(errors.New("boom"))
 
-	printText(&buf, err)
-
-	out := buf.String()
-
-	if !strings.Contains(out, "❌ generic error") {
-		t.Fatal("expected fallback error output")
+	if !strings.Contains(buf.String(), "❌ boom") {
+		t.Fatal(buf.String())
 	}
 }
 
 func TestPrintJSON_CoreError(t *testing.T) {
-	reset(t)
+	resetViper(t)
 
-	var buf bytes.Buffer
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
 	err := &appErr.CoreError{
-		Code:    appErr.ErrValidation,
-		Scope:   "field",
-		Message: "invalid input",
-		Err:     errors.New("bad format"),
+		Code:    appErr.ErrConfigLoad,
+		Scope:   "config",
+		Message: "failed",
+		Err:     errors.New("root cause"),
 	}
 
-	printJSON(&buf, err)
+	ctx.PrintJSON(err)
 
 	out := buf.String()
 
-	if !strings.Contains(out, `"code": "VALIDATION_FAILED"`) {
-		t.Fatal("missing code")
+	if !strings.Contains(out, `"code"`) ||
+		!strings.Contains(out, `"scope"`) ||
+		!strings.Contains(out, `"cause"`) {
+		t.Fatal(out)
 	}
+}
 
-	if !strings.Contains(out, `"scope": "field"`) {
-		t.Fatal("missing scope")
-	}
+func TestPrintJSON_DefaultError(t *testing.T) {
+	resetViper(t)
 
-	if !strings.Contains(out, `"cause": "bad format"`) {
-		t.Fatal("missing cause")
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
+
+	ctx.PrintJSON(errors.New("boom"))
+
+	if !strings.Contains(buf.String(), `"error": "boom"`) {
+		t.Fatal(buf.String())
 	}
 }
 
 func TestPrint_TextMode(t *testing.T) {
-	reset(t)
-	viper.Set("debug", false)
+	resetViper(t)
 
-	var buf bytes.Buffer
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	err := &appErr.CoreError{
-		Code:    appErr.ErrIO,
-		Scope:   "file",
-		Message: "failed",
-	}
+	ctx.Print(errors.New("boom"))
 
-	Print(&buf, err)
-
-	out := buf.String()
-
-	if !strings.Contains(out, "[IO_OPERATION_FAILED]") {
-		t.Fatal("expected text output")
-	}
-
-	if strings.Contains(out, "{") {
-		t.Fatal("should not be JSON output")
+	if !strings.Contains(buf.String(), "❌ boom") {
+		t.Fatal(buf.String())
 	}
 }
 
-func TestPrint_JSONMode(t *testing.T) {
-	reset(t)
+func TestPrint_DebugMode(t *testing.T) {
+	resetViper(t)
 	viper.Set("debug", true)
 
-	var buf bytes.Buffer
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	err := &appErr.CoreError{
-		Code:    appErr.ErrRuntime,
-		Scope:   "exec",
-		Message: "crash",
-		Err:     errors.New("panic"),
+	ctx.Print(errors.New("boom"))
+
+	if !strings.Contains(buf.String(), `"error": "boom"`) {
+		t.Fatal(buf.String())
 	}
+}
 
-	Print(&buf, err)
+func TestPrint_NilError(t *testing.T) {
+	resetViper(t)
 
-	out := buf.String()
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	if !strings.Contains(out, `"code"`) {
-		t.Fatal("expected json output")
-	}
+	ctx.Print(nil)
 
-	if !strings.Contains(out, "RUNTIME_EXECUTION_FAILED") {
-		t.Fatal("missing code in json")
+	if buf.Len() != 0 {
+		t.Fatal("should not print anything")
 	}
 }
 
 func TestExitCode(t *testing.T) {
-	cases := []struct {
-		name string
+	resetViper(t)
+
+	ctx := New(new(bytes.Buffer))
+
+	tests := []struct {
 		err  error
 		want int
 	}{
-		{
-			"validation",
-			&appErr.CoreError{Code: appErr.ErrValidation},
-			2,
-		},
-		{
-			"config_not_found",
-			&appErr.CoreError{Code: appErr.ErrConfigNotFound},
-			3,
-		},
-		{
-			"config_load",
-			&appErr.CoreError{Code: appErr.ErrConfigLoad},
-			4,
-		},
-		{
-			"default_core_error",
-			&appErr.CoreError{Code: "UNKNOWN"},
-			1,
-		},
-		{
-			"non_core_error",
-			errors.New("random"),
-			1,
-		},
+		{&appErr.CoreError{Code: appErr.ErrValidation}, 2},
+		{&appErr.CoreError{Code: appErr.ErrConfigNotFound}, 3},
+		{&appErr.CoreError{Code: appErr.ErrConfigLoad}, 4},
+		{&appErr.CoreError{Code: "OTHER"}, 1},
+		{errors.New("x"), 1},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got := ExitCode(c.err)
-
-			if got != c.want {
-				t.Fatalf("expected %d, got %d", c.want, got)
-			}
-		})
+	for _, tt := range tests {
+		got := ctx.ExitCode(tt.err)
+		if got != tt.want {
+			t.Fatalf("want %d got %d", tt.want, got)
+		}
 	}
 }
