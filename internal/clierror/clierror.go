@@ -14,7 +14,7 @@ import (
 func printText(w io.Writer, err error) {
 	switch e := err.(type) {
 	case *appErr.CoreError:
-		fmt.Fprintf(w, "\n❌ [%s]", e.Code)
+		fmt.Fprintf(w, "❌ [%s]", e.Code)
 
 		if e.Scope != "" {
 			fmt.Fprintf(w, " (%s)", e.Scope)
@@ -47,7 +47,7 @@ func printJSON(w io.Writer, err error) {
 	}
 
 	b, _ := json.MarshalIndent(payload, "", "  ")
-	fmt.Fprintln(w, "\n"+string(b))
+	fmt.Fprintln(w, string(b))
 }
 
 func Print(w io.Writer, err error) {
