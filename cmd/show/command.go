@@ -9,6 +9,5 @@ import (
 var Cmd = docs.ApplyDocs(sDocs, &cobra.Command{})
 
 func init() {
-	Cmd.AddCommand(sConfigCmd)
-	Cmd.AddCommand(sRoutesCmd)
+	Cmd.AddCommand(sConfigCmd, sRoutesCmd)
 }

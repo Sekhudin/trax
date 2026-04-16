@@ -7,9 +7,12 @@ import (
 )
 
 var sRoutesCmd = docs.ApplyDocs(sRoutesDocs, &cobra.Command{
-	Run: func(cmd *cobra.Command, args []string) {
-	},
+	RunE: sRoutesRunE,
 })
 
 func init() {
+}
+
+func sRoutesRunE(cmd *cobra.Command, args []string) error {
+	return nil
 }

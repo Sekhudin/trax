@@ -4,7 +4,7 @@ import (
 	"trax/internal/docs"
 )
 
-var Docs = docs.Docs{
+var rootDocs = docs.Docs{
 	Use:     "trax",
 	Version: "0.0.1",
 	Short:   "Powering TypeScript project workflows",

@@ -15,28 +15,11 @@ import (
 	appErr "trax/internal/errors"
 )
 
-var root = docs.ApplyDocs(Docs, &cobra.Command{
+var root = docs.ApplyDocs(rootDocs, &cobra.Command{
 	SilenceUsage:      true,
 	SilenceErrors:     true,
-	PersistentPreRunE: persistentPreRunE,
+	PersistentPreRunE: rootPersistentPreRunE,
 })
-
-func persistentPreRunE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-
-	cfgFile, err := flags.GetString("config")
-	if err != nil {
-		return appErr.NewFlagReadError("config", err)
-	}
-	return bootstrap.LoadConfig(cfgFile)
-}
-
-func Execute() {
-	if cmd, err := root.ExecuteC(); err != nil {
-		clierror.Print(cmd.ErrOrStderr(), err)
-		os.Exit(clierror.ExitCode(err))
-	}
-}
 
 func init() {
 	pFlags := root.PersistentFlags()
@@ -51,4 +34,21 @@ func init() {
 	})
 
 	root.AddCommand(generate.Cmd, show.Cmd)
+}
+
+func rootPersistentPreRunE(cmd *cobra.Command, args []string) error {
+	flags := cmd.Flags()
+
+	cfgFile, err := flags.GetString("config")
+	if err != nil {
+		return appErr.NewFlagReadError("config", err)
+	}
+	return bootstrap.LoadConfig(cfgFile)
+}
+
+func Execute() {
+	if cmd, err := root.ExecuteC(); err != nil {
+		clierror.Print(cmd.ErrOrStderr(), err)
+		os.Exit(clierror.ExitCode(err))
+	}
 }

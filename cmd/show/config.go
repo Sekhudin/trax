@@ -14,8 +14,32 @@ import (
 )
 
 var sConfigCmd = docs.ApplyDocs(sConfigDocs, &cobra.Command{
-	RunE: runE,
+	RunE: sConfigRunE,
 })
+
+func init() {
+	flags := sConfigCmd.Flags()
+
+	flags.Bool("json", false, "Output as json")
+}
+
+func sConfigRunE(cmd *cobra.Command, args []string) error {
+	flags := cmd.Flags()
+
+	asJSON, err := flags.GetBool("json")
+	if err != nil {
+		return appErr.NewFlagReadError("json", err)
+	}
+
+	settings := viper.AllSettings()
+	w := cmd.OutOrStdout()
+
+	if asJSON {
+		return printJSON(w, settings)
+	}
+
+	return printFlat(w, "", settings)
+}
 
 func printJSON(w io.Writer, data map[string]any) error {
 	b, err := json.MarshalIndent(data, "", "  ")
@@ -50,28 +74,4 @@ func printFlat(w io.Writer, prefix string, data map[string]any) error {
 	}
 
 	return nil
-}
-
-func runE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-
-	asJSON, err := flags.GetBool("json")
-	if err != nil {
-		return appErr.NewFlagReadError("json", err)
-	}
-
-	settings := viper.AllSettings()
-	w := cmd.OutOrStdout()
-
-	if asJSON {
-		return printJSON(w, settings)
-	}
-
-	return printFlat(w, "", settings)
-}
-
-func init() {
-	flags := sConfigCmd.Flags()
-
-	flags.Bool("json", false, "Output as json")
 }
