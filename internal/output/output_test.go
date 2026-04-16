@@ -1,117 +1,205 @@
-package output_test
+package output
 
 import (
 	"bytes"
 	"strings"
 	"testing"
 
-	"trax/internal/output"
-
 	"github.com/spf13/viper"
 )
 
-func reset(t *testing.T) {
+func resetViper(t *testing.T) {
 	t.Helper()
 	viper.Reset()
 }
 
-func TestContext_Success_TextMode(t *testing.T) {
-	reset(t)
+func TestNew(t *testing.T) {
+	resetViper(t)
 
-	var buf bytes.Buffer
-	out := output.New(&buf)
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	out.Success("config", "created")
-
-	got := buf.String()
-
-	if !strings.Contains(got, "✔ [config] created") {
-		t.Errorf("unexpected output: %s", got)
+	if ctx.Writer != buf {
+		t.Fatal("writer not set correctly")
 	}
 }
 
-func TestContext_Info_TextMode(t *testing.T) {
-	reset(t)
+func TestNotifyText(t *testing.T) {
+	resetViper(t)
 
-	var buf bytes.Buffer
-	out := output.New(&buf)
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	out.Info("auth", "login success")
+	ctx.NotifyText(Notification{"success", "a", "b"})
+	ctx.NotifyText(Notification{"warn", "c", "d"})
+	ctx.NotifyText(Notification{"info", "e", "f"})
 
-	got := buf.String()
+	out := buf.String()
 
-	if !strings.Contains(got, "ℹ  [auth] login success") {
-		t.Errorf("unexpected output: %s", got)
+	if !strings.Contains(out, "✔ [a] b") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "  [c] d") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "ℹ  [e] f") {
+		t.Fatal(out)
 	}
 }
 
-func TestContext_Warn_TextMode(t *testing.T) {
-	reset(t)
+func TestNotifyJSON(t *testing.T) {
+	resetViper(t)
 
-	var buf bytes.Buffer
-	out := output.New(&buf)
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	out.Warn("config", "missing file")
+	ctx.NotifyJSON(Notification{"success", "config", "ok"})
 
-	got := buf.String()
+	out := buf.String()
 
-	if !strings.Contains(got, "  [config] missing file") {
-		t.Errorf("unexpected output: %s", got)
+	if !strings.Contains(out, `"level": "success"`) {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, `"scope": "config"`) {
+		t.Fatal(out)
 	}
 }
 
-func TestContext_Success_DebugMode_JSON(t *testing.T) {
-	reset(t)
+func TestNotifications_TextMode(t *testing.T) {
+	resetViper(t)
+
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
+
+	ctx.Success("config", "ok")
+	ctx.Info("config", "info")
+	ctx.Warn("config", "warn")
+
+	out := buf.String()
+
+	if !strings.Contains(out, "✔ [config] ok") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "ℹ  [config] info") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "  [config] warn") {
+		t.Fatal(out)
+	}
+}
+
+func TestNotifications_DebugMode(t *testing.T) {
+	resetViper(t)
 	viper.Set("debug", true)
 
-	var buf bytes.Buffer
-	out := output.New(&buf)
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	out.Success("config", "created")
+	ctx.Success("config", "ok")
+	ctx.Info("config", "info")
+	ctx.Warn("config", "warn")
 
-	got := buf.String()
+	out := buf.String()
 
-	if !strings.Contains(got, `"level": "success"`) {
-		t.Errorf("expected json output, got: %s", got)
-	}
-
-	if !strings.Contains(got, `"scope": "config"`) {
-		t.Errorf("missing scope in json: %s", got)
-	}
-
-	if !strings.Contains(got, `"message": "created"`) {
-		t.Errorf("missing message in json: %s", got)
+	if strings.Count(out, `"level"`) != 3 {
+		t.Fatal(out)
 	}
 }
 
-func TestContext_Info_DebugMode_JSON(t *testing.T) {
-	reset(t)
-	viper.Set("debug", true)
+func TestAsJSON_OK(t *testing.T) {
+	resetViper(t)
 
-	var buf bytes.Buffer
-	out := output.New(&buf)
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	out.Info("auth", "ok")
+	err := ctx.AsJSON(map[string]any{"a": 1})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	got := buf.String()
-
-	if !strings.Contains(got, `"level": "info"`) {
-		t.Errorf("expected info json, got: %s", got)
+	if !strings.Contains(buf.String(), `"a": 1`) {
+		t.Fatal(buf.String())
 	}
 }
 
-func TestContext_Warn_DebugMode_JSON(t *testing.T) {
-	reset(t)
-	viper.Set("debug", true)
+func TestAsJSON_MarshalError(t *testing.T) {
+	resetViper(t)
 
-	var buf bytes.Buffer
-	out := output.New(&buf)
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
 
-	out.Warn("config", "missing")
+	err := ctx.AsJSON(map[string]any{
+		"bad": make(chan int),
+	})
 
-	got := buf.String()
+	if err == nil {
+		t.Fatal("expected marshal error")
+	}
+}
 
-	if !strings.Contains(got, `"level": "warn"`) {
-		t.Errorf("expected warn json, got: %s", got)
+func TestAsFlat_NestedMap(t *testing.T) {
+	resetViper(t)
+
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
+
+	data := map[string]any{
+		"db": map[string]any{
+			"host": "localhost",
+		},
+	}
+
+	err := ctx.AsFlat("", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(buf.String(), "db.host = localhost") {
+		t.Fatal(buf.String())
+	}
+}
+
+func TestAsFlat_SlicePrimitive(t *testing.T) {
+	resetViper(t)
+
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
+
+	data := map[string]any{
+		"nums": []any{1, 2},
+	}
+
+	err := ctx.AsFlat("", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out := buf.String()
+
+	if !strings.Contains(out, "nums.0 = 1") ||
+		!strings.Contains(out, "nums.1 = 2") {
+		t.Fatal(out)
+	}
+}
+
+func TestAsFlat_SliceMap(t *testing.T) {
+	resetViper(t)
+
+	buf := new(bytes.Buffer)
+	ctx := New(buf)
+
+	data := map[string]any{
+		"items": []any{
+			map[string]any{"a": 1},
+		},
+	}
+
+	err := ctx.AsFlat("", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(buf.String(), "items.0.a = 1") {
+		t.Fatal(buf.String())
 	}
 }
