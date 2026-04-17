@@ -50,12 +50,12 @@ func sRoutesRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if cfg.Strategy == "file" {
-		out.Info("routes", fmt.Sprintf("using route definition file: '%s'\n", cfg.File.Full))
-		rTree, err := routes.ShowStrategyFile(cfg)
+		rTree, err := routes.ShowFromFile(cfg)
 		if err != nil {
-			return appErr.NewIOError("routes", "", err)
+			return appErr.NewValidationError("routes", err.Error())
 		}
 
+		out.Info("routes", fmt.Sprintf("using route definition file: '%s'\n", cfg.File.Full))
 		if asJSON {
 			out.AsJSON(*rTree)
 			return nil
@@ -66,6 +66,10 @@ func sRoutesRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	out.Info("routes", fmt.Sprintf("discovering routes using strategy: '%s'\n", cfg.Strategy))
+
+	if asJSON {
+		return nil
+	}
 
 	return nil
 }

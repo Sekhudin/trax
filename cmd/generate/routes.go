@@ -44,11 +44,12 @@ func gRoutesRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if cfg.Strategy == "file" {
-		out.Info("routes", fmt.Sprintf("using route definition file: '%s'", cfg.File.Full))
-		_, err := routes.GenerateStrategyFile(cfg)
+		_, err := routes.GenerateFromFile(cfg)
 		if err != nil {
 			return appErr.NewIOError("routes", "", err)
 		}
+
+		out.Info("routes", fmt.Sprintf("using route definition file: '%s'", cfg.File.Full))
 		return nil
 	}
 

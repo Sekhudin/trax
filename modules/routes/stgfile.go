@@ -32,23 +32,37 @@ func loadRoutesFile(c *RoutesConfig) ([]RawRoute, error) {
 	return rFile.Routes, nil
 }
 
-func ShowStrategyFile(c *RoutesConfig) (*map[string]any, error) {
+func ShowFromFile(c *RoutesConfig) (*map[string]any, error) {
 	rRoutes, err := loadRoutesFile(c)
 	if err != nil {
 		return nil, err
 	}
 
-	routes := BuildRoutes(rRoutes)
-	rTree := BuildRouteTree(routes)
-	return &rTree, nil
+	routes, err := BuildRoutes(rRoutes)
+	if err != nil {
+		return nil, err
+	}
+
+	rTree, err := BuildRouteTree(routes)
+	if err != nil {
+		return nil, err
+	}
+
+	mapRTree := ToMap(rTree)
+
+	return &mapRTree, nil
 }
 
-func GenerateStrategyFile(c *RoutesConfig) (*[]Route, error) {
+func GenerateFromFile(c *RoutesConfig) (*[]Route, error) {
 	rRoutes, err := loadRoutesFile(c)
 	if err != nil {
 		return nil, err
 	}
 
-	routes := BuildRoutes(rRoutes)
+	routes, err := BuildRoutes(rRoutes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &routes, nil
 }
