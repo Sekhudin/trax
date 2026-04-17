@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type RawRoute struct {
@@ -98,6 +100,46 @@ func ToMap(nodes map[string]*Node) map[string]any {
 	}
 
 	return result
+}
+
+type SelectorFunc func(selector string) (map[string]any, error)
+
+func NewTreeSelector(tree map[string]any) (SelectorFunc, error) {
+	v := viper.New()
+
+	rKey := "routes"
+	v.SetDefault(rKey, tree[rKey])
+
+	return func(selector string) (map[string]any, error) {
+		if selector != "" {
+			selector = fmt.Sprintf("%s.%s", rKey, selector)
+		} else {
+			selector = rKey
+		}
+
+		val := v.Get(selector)
+
+		switch v := val.(type) {
+
+		case nil:
+			return nil, fmt.Errorf("'%s' not found", selector)
+
+		case map[string]any:
+			return v, nil
+
+		case string:
+			return map[string]any{
+				"path": v,
+			}, nil
+
+		default:
+			return nil, fmt.Errorf(
+				"invalid type for selector '%s': %T",
+				selector,
+				val,
+			)
+		}
+	}, nil
 }
 
 func cleanPath(r RawRoute) (string, error) {

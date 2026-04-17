@@ -15,6 +15,8 @@ func loadRoutesFile(c *RoutesConfig) ([]RawRoute, error) {
 
 	v.SetConfigFile(c.File.Full)
 
+	v.SetDefault("foo", "")
+
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("failed to read routes file: %w", err)
 	}
@@ -32,7 +34,7 @@ func loadRoutesFile(c *RoutesConfig) ([]RawRoute, error) {
 	return rFile.Routes, nil
 }
 
-func ShowFromFile(c *RoutesConfig) (*map[string]any, error) {
+func ShowFromFile(c *RoutesConfig) (SelectorFunc, error) {
 	rRoutes, err := loadRoutesFile(c)
 	if err != nil {
 		return nil, err
@@ -48,9 +50,12 @@ func ShowFromFile(c *RoutesConfig) (*map[string]any, error) {
 		return nil, err
 	}
 
-	mapRTree := ToMap(rTree)
+	rSelector, err := NewTreeSelector(ToMap(rTree))
+	if err != nil {
+		return nil, err
+	}
 
-	return &mapRTree, nil
+	return rSelector, nil
 }
 
 func GenerateFromFile(c *RoutesConfig) (*[]Route, error) {
