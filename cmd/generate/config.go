@@ -20,7 +20,7 @@ func init() {
 	flags := gConfigCmd.Flags()
 
 	flags.Bool("override", false, "overwrite existing config file")
-	flags.StringP("format", "f", "toml", "config format (json|yaml|toml`)")
+	flags.StringP("format", "f", "toml", "config format")
 }
 
 func gConfigRunE(cmd *cobra.Command, args []string) error {
@@ -51,7 +51,7 @@ func gConfigRunE(cmd *cobra.Command, args []string) error {
 	case "toml":
 		ext = format
 	default:
-		return appErr.NewValidationError("config", "Invalid format")
+		return appErr.NewValidationError("config", fmt.Sprintf(`Invalid value "%s" (allowed: json, yaml, toml)`, ext))
 	}
 
 	fileName := fmt.Sprintf("./trax.%s", ext)

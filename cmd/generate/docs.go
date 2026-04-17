@@ -13,7 +13,7 @@ var (
 		Use:   "config",
 		Short: "Generate configuration file",
 		Long: docs.Paragraph(
-			"Trax generates a configuration file for your project setup and CLI behavior.",
+			"Generate configuration file for your project",
 			docs.Line(
 				"Supported output formats:",
 				"- JSON (trax.json)",
@@ -27,8 +27,7 @@ var (
 		Use:   "routes",
 		Short: "Generate type-safe route helpers",
 		Long: docs.Paragraph(
-			"Trax generates type-safe route helpers from your project structure.",
-			"It allows you to navigate and construct routes programmatically with full type safety.",
+			"Generates type-safe route helpers from your project structure or given routes declaration",
 		),
 	}
 )

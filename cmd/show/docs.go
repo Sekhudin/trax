@@ -20,7 +20,6 @@ var (
 		Short: "Show current Trax configuration",
 		Long: docs.Paragraph(
 			"Displays the resolved configuration used by Trax.",
-			"This includes CLI flags, config file values, and environment overrides.",
 		),
 	}
 )

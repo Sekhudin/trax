@@ -10,6 +10,5 @@ var rootDocs = docs.Docs{
 	Short:   "Powering TypeScript project workflows",
 	Long: docs.Paragraph(
 		"Trax is a CLI tool for automating TypeScript project workflows.",
-		"It helps you generate and manage project structures with consistent conventions.",
 	),
 }
