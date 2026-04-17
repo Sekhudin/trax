@@ -9,8 +9,17 @@ import (
 	appErr "trax/internal/errors"
 )
 
+var routes = map[string]any{
+	"strategy": "next-app",
+	"root":     ".",
+	"file":     "",
+	"output":   "src/trax/routes.ts",
+	"deps":     []string{"qs"},
+}
+
 func LoadConfig(cfgFile string) error {
 	viper.SetDefault("debug", false)
+	viper.SetDefault("routes", routes)
 
 	viper.SetEnvPrefix("TRAX")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
