@@ -16,9 +16,9 @@ var (
 			"Generate configuration file for your project",
 			docs.Line(
 				"Supported output formats:",
-				"- JSON (trax.json)",
-				"- YAML (trax.yaml)",
-				"- TOML (trax.toml)",
+				"  - JSON (trax.json)",
+				"  - YAML (trax.yaml)",
+				"  - TOML (trax.toml)",
 			),
 		),
 	}

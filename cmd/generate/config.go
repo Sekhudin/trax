@@ -2,6 +2,8 @@ package generate
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"trax/internal/docs"
 	"trax/internal/output"
@@ -42,23 +44,19 @@ func gConfigRunE(cmd *cobra.Command, args []string) error {
 		return appErr.NewFlagReadError("format", err)
 	}
 
-	ext := format
-	switch format {
-	case "json":
-		ext = "json"
-	case "yaml":
-		ext = "yaml"
-	case "toml":
-		ext = format
-	default:
-		return appErr.NewValidationError("config", fmt.Sprintf(`Invalid value "%s" (allowed: json, yaml, toml)`, ext))
+	formats := []string{"json", "toml", "yaml", "yml"}
+	if !slices.Contains(formats, format) {
+		return appErr.NewValidationError("config", fmt.Sprintf(
+			"invalid value '%s' (allowed: %s)",
+			format, strings.Join(formats, ", "),
+		))
 	}
 
-	fileName := fmt.Sprintf("./trax.%s", ext)
+	fileName := fmt.Sprintf("./trax.%s", format)
 	if err := writeConfig(fileName); err != nil {
-		return appErr.NewIOError("config", "Failed to write configuration file", err)
+		return appErr.NewIOError("config", "failed to write configuration file", err)
 	}
 
-	out.Success("config", fmt.Sprintf("Config written %s", fileName))
+	out.Success("config", fmt.Sprintf("config written %s", fileName))
 	return nil
 }
