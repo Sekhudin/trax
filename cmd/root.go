@@ -24,10 +24,12 @@ var root = docs.ApplyDocs(rootDocs, &cobra.Command{
 func init() {
 	pFlags := root.PersistentFlags()
 
-	pFlags.String("config", "", "path to config file")
 	pFlags.BoolP("debug", "d", false, "show debug info")
+	pFlags.Bool("no-color", false, "disable color")
+	pFlags.String("config", "", "path to config file")
 
 	viper.BindPFlag("debug", pFlags.Lookup("debug"))
+	viper.BindPFlag("no-color", pFlags.Lookup("no-color"))
 
 	root.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
 		return appErr.NewValidationError("flag", err.Error())

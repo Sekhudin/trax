@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/viper"
 
 	appErr "trax/internal/errors"
+	"trax/internal/output"
 )
 
 type Context struct {
@@ -22,20 +23,20 @@ func New(w io.Writer) *Context {
 func (c *Context) PrintText(err error) {
 	switch e := err.(type) {
 	case *appErr.CoreError:
-		fmt.Fprintf(c.Writer, "❌ [%s]", e.Code)
+		fmt.Fprintf(c.Writer, "%s %s:", output.IconError, output.Bold(e.Code))
 
 		if e.Scope != "" {
-			fmt.Fprintf(c.Writer, " (%s)", e.Scope)
+			fmt.Fprintf(c.Writer, " (%s)", output.Red(e.Scope))
 		}
 
 		fmt.Fprintf(c.Writer, " %s\n", e.Message)
 
 		if e.Err != nil {
-			fmt.Fprintf(c.Writer, "   ↳ %v\n", e.Err)
+			fmt.Fprintf(c.Writer, "    %s %v\n", output.IconDetail, e.Err)
 		}
 
 	default:
-		fmt.Fprintf(c.Writer, "❌ %v\n", err)
+		fmt.Fprintf(c.Writer, "%s %v\n", output.IconError, err)
 	}
 }
 

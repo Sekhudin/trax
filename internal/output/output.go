@@ -37,21 +37,24 @@ func (c *Context) NotifyJSON(n Notification) {
 }
 
 func (c *Context) NotifyText(n Notification) {
-	var format string
+	var icon string
 	switch n.Level {
+
 	case "success":
-		format = "✔ [%s] %s\n"
+		icon = IconSuccess
+
 	case "warn":
-		format = "  [%s] %s\n"
+		icon = IconWarn
+
 	default:
-		format = "ℹ  [%s] %s\n"
+		icon = IconInfo
 	}
 
-	fmt.Fprintf(c.Writer, format, n.Scope, n.Message)
+	fmt.Fprintf(c.Writer, "%s (%s) %s\n", icon, n.Scope, n.Message)
 }
 
 func (c *Context) Success(scope, msg string) {
-	notification := Notification{Level: "success", Scope: scope, Message: msg}
+	notification := Notification{Level: "success", Scope: Green(scope), Message: msg}
 	if viper.GetBool("debug") {
 		c.NotifyJSON(notification)
 		return
@@ -61,7 +64,7 @@ func (c *Context) Success(scope, msg string) {
 }
 
 func (c *Context) Info(scope, msg string) {
-	notification := Notification{Level: "info", Scope: scope, Message: msg}
+	notification := Notification{Level: "info", Scope: Blue(scope), Message: msg}
 	if viper.GetBool("debug") {
 		c.NotifyJSON(notification)
 		return
@@ -71,7 +74,7 @@ func (c *Context) Info(scope, msg string) {
 }
 
 func (c *Context) Warn(scope, msg string) {
-	notification := Notification{Level: "warn", Scope: scope, Message: msg}
+	notification := Notification{Level: "warn", Scope: Yellow(scope), Message: msg}
 	if viper.GetBool("debug") {
 		c.NotifyJSON(notification)
 		return

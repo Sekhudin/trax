@@ -18,7 +18,6 @@ var routes = map[string]any{
 }
 
 func LoadConfig(cfgFile string) error {
-	viper.SetDefault("debug", false)
 	viper.SetDefault("routes", routes)
 
 	viper.SetEnvPrefix("TRAX")

@@ -41,7 +41,7 @@ func TestPrintText_CoreError_Simple(t *testing.T) {
 	ctx.PrintText(err)
 
 	out := buf.String()
-	if !strings.Contains(out, "❌ [CONFIG_LOAD_FAILED] failed") {
+	if !strings.Contains(out, "CONFIG_LOAD_FAILED") {
 		t.Fatal(out)
 	}
 }
@@ -62,7 +62,7 @@ func TestPrintText_CoreError_WithScopeAndCause(t *testing.T) {
 	ctx.PrintText(err)
 
 	out := buf.String()
-	if !strings.Contains(out, "(config)") ||
+	if !strings.Contains(out, "config") ||
 		!strings.Contains(out, "root cause") {
 		t.Fatal(out)
 	}
@@ -76,7 +76,7 @@ func TestPrintText_DefaultError(t *testing.T) {
 
 	ctx.PrintText(errors.New("boom"))
 
-	if !strings.Contains(buf.String(), "❌ boom") {
+	if !strings.Contains(buf.String(), "boom") {
 		t.Fatal(buf.String())
 	}
 }
@@ -126,7 +126,7 @@ func TestPrint_TextMode(t *testing.T) {
 
 	ctx.Print(errors.New("boom"))
 
-	if !strings.Contains(buf.String(), "❌ boom") {
+	if !strings.Contains(buf.String(), "boom") {
 		t.Fatal(buf.String())
 	}
 }
