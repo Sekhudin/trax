@@ -23,17 +23,17 @@ func ParseFilePath(out string, allowedExts []string) (*FilePath, error) {
 	ext := filepath.Ext(clean)
 	if ext == "" {
 		return nil, fmt.Errorf(
-			"path: %q must include file extension (allowed: %s)",
+			"path: %q must include file extension (allowed: %q)",
 			clean,
-			strings.Join(allowedExts, ", "),
+			strings.Join(allowedExts, " | "),
 		)
 	}
 
 	if !isAllowedExt(ext, allowedExts) {
 		return nil, fmt.Errorf(
-			"unsupported extension: %s (allowed: %s)",
+			"unsupported extension: %s (allowed: %q)",
 			ext,
-			strings.Join(allowedExts, ", "),
+			strings.Join(allowedExts, " | "),
 		)
 	}
 

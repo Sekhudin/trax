@@ -3,66 +3,66 @@ package routes
 import "fmt"
 
 func loadFromDisc(c *RoutesConfig) ([]raw, error) {
-	var rw []raw
-
 	switch c.Strategy {
 	case "next-page":
 		w := walker{cfg: c, rule: &nextPageRule, wRule: stgNextPage{}}
-		rs, err := w.walk()
+		r, err := w.walk()
 		if err != nil {
 			return nil, err
 		}
-		rw = rs
+
+		return r, nil
 
 	case "next-app":
 		w := walker{cfg: c, rule: &nextAppRule, wRule: stgNextApp{}}
-		rs, err := w.walk()
+		r, err := w.walk()
 		if err != nil {
 			return nil, err
 		}
-		rw = rs
+
+		return r, nil
 
 	default:
 		return nil, fmt.Errorf("failed to read routes (strategy: %q)", c.Strategy)
 	}
-
-	return rw, nil
 }
 
 func ShowFromDisc(c *RoutesConfig) (TreeSelector, error) {
-	rFile, err := loadFromDisc(c)
+	r, err := loadFromDisc(c)
 	if err != nil {
 		return nil, err
 	}
 
-	routes, err := buildRoutes(rFile)
+	rs, err := buildRoutes(r)
 	if err != nil {
 		return nil, err
 	}
 
-	tree, err := buildTree(routes)
+	tr, err := buildTree(rs)
 	if err != nil {
 		return nil, err
 	}
 
-	tSelector, err := newTreeSelector(toMap(tree))
+	ts, err := newTreeSelector(toMap(tr))
 	if err != nil {
 		return nil, err
 	}
 
-	return tSelector, nil
+	return ts, nil
 }
 
-func GenerateFromDisc(c *RoutesConfig) (*[]route, error) {
-	rRoutes, err := loadFromDisc(c)
+func GenerateFromDisc(c *RoutesConfig) error {
+	r, err := loadFromDisc(c)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
-	routes, err := buildRoutes(rRoutes)
+	rs, err := buildRoutes(r)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
-	return &routes, nil
+	fmt.Println(rs)
+
+	return nil
 }

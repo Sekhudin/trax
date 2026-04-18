@@ -44,8 +44,7 @@ func gRoutesRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if cfg.Strategy == "file" {
-		_, err := routes.GenerateFromFile(cfg)
-		if err != nil {
+		if err := routes.GenerateFromFile(cfg); err != nil {
 			return appErr.NewIOError("routes", "", err)
 		}
 
@@ -53,7 +52,10 @@ func gRoutesRunE(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	out.Info("routes", fmt.Sprintf("discovering routes using strategy: %q", cfg.Strategy))
+	if err := routes.GenerateFromDisc(cfg); err != nil {
+		return appErr.NewIOError("routes", "", err)
+	}
 
+	out.Info("routes", fmt.Sprintf("discovering routes using strategy: %q", cfg.Strategy))
 	return nil
 }

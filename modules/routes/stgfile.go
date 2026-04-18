@@ -21,53 +21,55 @@ func loadFromFile(c *RoutesConfig) ([]raw, error) {
 		return nil, fmt.Errorf("failed to read routes file: %w", err)
 	}
 
-	var rFile routesFile
+	var r routesFile
 
-	if err := v.Unmarshal(&rFile); err != nil {
+	if err := v.Unmarshal(&r); err != nil {
 		return nil, fmt.Errorf("failed to parse routes schema: %w", err)
 	}
 
-	if len(rFile.Routes) == 0 {
+	if len(r.Routes) == 0 {
 		return nil, fmt.Errorf("routes file is empty")
 	}
 
-	return rFile.Routes, nil
+	return r.Routes, nil
 }
 
 func ShowFromFile(c *RoutesConfig) (TreeSelector, error) {
-	rFile, err := loadFromFile(c)
+	r, err := loadFromFile(c)
 	if err != nil {
 		return nil, err
 	}
 
-	routes, err := buildRoutes(rFile)
+	rs, err := buildRoutes(r)
 	if err != nil {
 		return nil, err
 	}
 
-	tree, err := buildTree(routes)
+	tr, err := buildTree(rs)
 	if err != nil {
 		return nil, err
 	}
 
-	tSelector, err := newTreeSelector(toMap(tree))
+	ts, err := newTreeSelector(toMap(tr))
 	if err != nil {
 		return nil, err
 	}
 
-	return tSelector, nil
+	return ts, nil
 }
 
-func GenerateFromFile(c *RoutesConfig) (*[]route, error) {
-	rRoutes, err := loadFromFile(c)
+func GenerateFromFile(c *RoutesConfig) error {
+	r, err := loadFromFile(c)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	routes, err := buildRoutes(rRoutes)
+	rs, err := buildRoutes(r)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return &routes, nil
+	fmt.Println(rs)
+
+	return nil
 }

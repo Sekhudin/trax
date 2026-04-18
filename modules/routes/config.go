@@ -46,9 +46,9 @@ func LoadConfig() (*RoutesConfig, error) {
 	}
 
 	if !cfg.isValidStartegy() {
-		return nil, fmt.Errorf("strategy: %q invalid, allowed: %s",
+		return nil, fmt.Errorf("strategy: %q invalid, allowed: %q",
 			cfg.Strategy,
-			strings.Join(strategies, ", "))
+			strings.Join(strategies, " | "))
 	}
 
 	if file != "" {
