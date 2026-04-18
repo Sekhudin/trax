@@ -47,7 +47,7 @@ func gConfigRunE(cmd *cobra.Command, args []string) error {
 	formats := []string{"json", "toml", "yaml", "yml"}
 	if !slices.Contains(formats, format) {
 		return appErr.NewValidationError("config", fmt.Sprintf(
-			"invalid value '%s' (allowed: %s)",
+			"invalid value %q (allowed: %s)",
 			format, strings.Join(formats, ", "),
 		))
 	}

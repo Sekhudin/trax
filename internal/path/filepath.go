@@ -23,7 +23,7 @@ func ParseFilePath(out string, allowedExts []string) (*FilePath, error) {
 	ext := filepath.Ext(clean)
 	if ext == "" {
 		return nil, fmt.Errorf(
-			"path: '%s' must include file extension (allowed: %s)",
+			"path: %q must include file extension (allowed: %s)",
 			clean,
 			strings.Join(allowedExts, ", "),
 		)

@@ -11,7 +11,8 @@ import (
 
 var routes = map[string]any{
 	"strategy": "next-app",
-	"root":     ".",
+	"prefix":   "routes",
+	"root":     "./src",
 	"file":     "",
 	"output":   "src/trax/routes.ts",
 	"deps":     []string{"qs"},
