@@ -3,6 +3,8 @@ package routes
 import (
 	"fmt"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 type raw struct {
@@ -11,14 +13,14 @@ type raw struct {
 }
 
 func (r *raw) cleanPath() (string, error) {
-	r.Path = strings.TrimSpace(r.Path);
+	r.Path = strings.TrimSpace(r.Path)
 
 	if !strings.HasPrefix(r.Path, "/") {
-		return "", fmt.Errorf("'%s' path must start with '/': %s", r.Name, r.Path)
+		return "", fmt.Errorf("%q path must start with %q: %s", r.Name, r.Path, "/")
 	}
 
 	if strings.Contains(r.Path, "//") {
-		return "", fmt.Errorf("'%s' path contains double slash: %s", r.Name, r.Path)
+		return "", fmt.Errorf("%q path contains double slash: %s", r.Name, r.Path)
 	}
 
 	if i := strings.Index(r.Path, "?"); i > -1 {
@@ -33,7 +35,9 @@ func (r *raw) cleanPath() (string, error) {
 }
 
 func (r *raw) splitPath() []string {
-	parts := strings.Split(fmt.Sprintf("%s%s", prefRoute, r.Path), "/")
+	prefix := viper.GetString("routes.prefix")
+
+	parts := strings.Split(fmt.Sprintf("%s%s", prefix, r.Path), "/")
 	var result []string
 
 	for _, p := range parts {
@@ -48,11 +52,11 @@ func (r *raw) splitPath() []string {
 func (r *raw) validateParts(parts []string) error {
 	for i, p := range parts {
 		if p == "*" && i != len(parts)-1 {
-			return fmt.Errorf("'%s' path wildcard must be last segment", r.Name)
+			return fmt.Errorf("%q path wildcard must be last segment", r.Name)
 		}
 
 		if strings.Contains(p, "*") && p != "*" {
-			return fmt.Errorf("'%s' path wildcard must be a single segment '*': %s", r.Name, p)
+			return fmt.Errorf("%q path wildcard must be a single segment %q: %s", r.Name, p, "*")
 		}
 	}
 	return nil

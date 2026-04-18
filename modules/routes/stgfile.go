@@ -10,7 +10,7 @@ type routesFile struct {
 	Routes []raw `mapstructure:"routes"`
 }
 
-func loadRoutesFile(c *RoutesConfig) ([]raw, error) {
+func loadFromFile(c *RoutesConfig) ([]raw, error) {
 	v := viper.New()
 
 	v.SetConfigFile(c.File.Full)
@@ -34,8 +34,8 @@ func loadRoutesFile(c *RoutesConfig) ([]raw, error) {
 	return rFile.Routes, nil
 }
 
-func ShowFromFile(c *RoutesConfig) (treeSelector, error) {
-	rFile, err := loadRoutesFile(c)
+func ShowFromFile(c *RoutesConfig) (TreeSelector, error) {
+	rFile, err := loadFromFile(c)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func ShowFromFile(c *RoutesConfig) (treeSelector, error) {
 }
 
 func GenerateFromFile(c *RoutesConfig) (*[]route, error) {
-	rRoutes, err := loadRoutesFile(c)
+	rRoutes, err := loadFromFile(c)
 	if err != nil {
 		return nil, err
 	}

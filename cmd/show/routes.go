@@ -55,33 +55,38 @@ func sRoutesRunE(cmd *cobra.Command, args []string) error {
 		return appErr.NewValidationError("routes", err.Error())
 	}
 
-	if cfg.Strategy == "file" {
+	var tSelector routes.TreeSelector
+
+	switch cfg.Strategy {
+	case "file":
 		rSelector, err := routes.ShowFromFile(cfg)
 		if err != nil {
 			return appErr.NewValidationError("routes", err.Error())
 		}
 
-		val, err := rSelector(key)
+		tSelector = rSelector
+		out.Info("routes", fmt.Sprintf("using route definition file: %q\n", cfg.File.Full))
+
+	default:
+		rSelector, err := routes.ShowFromDisc(cfg)
 		if err != nil {
-			return appErr.NewIOError("routes", "path not found", err)
+			return appErr.NewValidationError("routes", err.Error())
 		}
 
-		out.Info("routes", fmt.Sprintf("using route definition file: '%s'\n", cfg.File.Full))
-
-		if asJSON {
-			out.AsJSON(val)
-			return nil
-		}
-
-		out.AsFlat("", val)
-		return nil
+		tSelector = rSelector
+		out.Info("routes", fmt.Sprintf("discovering routes using strategy: %q\n", cfg.Strategy))
 	}
 
-	out.Info("routes", fmt.Sprintf("discovering routes using strategy: '%s'\n", cfg.Strategy))
+	val, err := tSelector(key)
+	if err != nil {
+		return appErr.NewIOError("routes", "path not found", err)
+	}
 
 	if asJSON {
+		out.AsJSON(val)
 		return nil
 	}
 
+	out.AsFlat("", val)
 	return nil
 }

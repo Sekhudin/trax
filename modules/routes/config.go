@@ -3,7 +3,6 @@ package routes
 import (
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -20,12 +19,8 @@ type RoutesConfig struct {
 }
 
 var (
-	prefRoute = "routes"
-	identRgx  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
-	staticRgx = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
-
-	fileExts   = []string{".json", ".yaml", ".yml"}
-	outputExts = []string{".js", ".ts"}
+	cfgExts    = []string{".json", ".yaml", ".yml"}
+	oExts      = []string{".js", ".ts"}
 	strategies = []string{"file", "next-app", "next-page"}
 )
 
@@ -39,42 +34,65 @@ func LoadConfig() (*RoutesConfig, error) {
 	output := viper.GetString("routes.output")
 
 	if cfg.Strategy == "" {
-		return nil, fmt.Errorf("strategy: <empty>, 'strategy' must be provided")
+		return nil, fmt.Errorf("strategy: <empty>, %q must be provided", "strategy")
 	}
 
 	if cfg.Strategy == "file" && file == "" {
-		return nil, fmt.Errorf("strategy: '%s', 'file' must be provided", cfg.Strategy)
+		return nil, fmt.Errorf("strategy: %q, %q must be provided", cfg.Strategy, "file")
 	}
 
 	if cfg.Strategy != "file" && file != "" {
-		return nil, fmt.Errorf("strategy: '%s', 'file' must be unset", cfg.Strategy)
+		return nil, fmt.Errorf("strategy: %q, %q must be unset", cfg.Strategy, "file")
 	}
 
-	if !isAllowed(cfg.Strategy, strategies) {
-		return nil, fmt.Errorf("strategy: '%s' invalid, allowed: %s",
+	if !cfg.isValidStartegy() {
+		return nil, fmt.Errorf("strategy: %q invalid, allowed: %s",
 			cfg.Strategy,
 			strings.Join(strategies, ", "))
 	}
 
 	if file != "" {
-		oPath, err := path.ParseFilePath(file, fileExts)
+		oPath, err := path.ParseFilePath(file, cfgExts)
 		if err != nil {
 			return nil, err
 		}
 		cfg.File = oPath
 	}
 
-	oPath, err := path.ParseFilePath(output, outputExts)
+	oPath, err := path.ParseFilePath(output, oExts)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.Root = filepath.Clean(cfg.Root)
+	cfg.Root = cfg.normalizeRoot()
 	cfg.Output = oPath
 
 	return &cfg, nil
 }
 
-func isAllowed(ext string, allowed []string) bool {
-	return slices.Contains(allowed, ext)
+func (c *RoutesConfig) isValidStartegy() bool {
+	return slices.Contains(strategies, c.Strategy)
+}
+
+func (c *RoutesConfig) normalizeRoot() string {
+	c.Root = filepath.Clean(c.Root)
+
+	var suffix string
+	switch c.Strategy {
+	case "next-app":
+		suffix = "app"
+
+	case "next-page":
+		suffix = "pages"
+
+	default:
+		return c.Root
+	}
+
+	if filepath.Base(c.Root) == suffix {
+		return c.Root
+	}
+
+	c.Root = filepath.Join(c.Root, suffix)
+	return c.Root
 }

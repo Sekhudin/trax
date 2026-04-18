@@ -2,6 +2,7 @@ package routes
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -17,6 +18,11 @@ type node struct {
 	kind     string
 	children map[string]*node
 }
+
+var (
+	identRgx  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	staticRgx = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+)
 
 func buildRoutes(rw []raw) ([]route, error) {
 	rs := make([]route, 0, len(rw))
@@ -50,13 +56,13 @@ func (r *route) normalizePart(part string) (string, string, error) {
 
 	if cut, found := strings.CutPrefix(part, ":"); found {
 		if !identRgx.MatchString(cut) {
-			return "", "", fmt.Errorf("'%s' invalid param name: %s", r.name, cut)
+			return "", "", fmt.Errorf("%q invalid param name: %s", r.name, cut)
 		}
 		return "$" + cut, "param", nil
 	}
 
 	if !staticRgx.MatchString(part) {
-		return "", "", fmt.Errorf("'%s' invalid path segment: %s", r.name, part)
+		return "", "", fmt.Errorf("%q invalid path segment: %s", r.name, part)
 	}
 
 	if strings.Contains(part, "-") {
@@ -75,19 +81,19 @@ func (r *route) normalizePart(part string) (string, string, error) {
 func (r *route) validateChild(current map[string]*node, kind string) error {
 	for _, c := range current {
 		if kind == "wildcard" || c.kind == "wildcard" {
-			return fmt.Errorf("'%s' path wildcard route cannot coexist with other routes at the same level", r.name)
+			return fmt.Errorf("%q path wildcard route cannot coexist with other routes at the same level", r.name)
 		}
 
 		if kind == "param" && c.kind == "static" {
-			return fmt.Errorf("'%s' path param route conflicts with existing static route", r.name)
+			return fmt.Errorf("%q path param route conflicts with existing static route", r.name)
 		}
 
 		if kind == "static" && c.kind == "param" {
-			return fmt.Errorf("'%s' path static route conflicts with existing param route", r.name)
+			return fmt.Errorf("%q path static route conflicts with existing param route", r.name)
 		}
 
 		if kind == "param" && c.kind == "param" {
-			return fmt.Errorf("'%s' path multiple param routes at the same level are not allowed", r.name)
+			return fmt.Errorf("%q path multiple param routes at the same level are not allowed", r.name)
 		}
 	}
 
@@ -111,7 +117,7 @@ func (r *route) insert(tree map[string]*node) error {
 
 		nd, ok := current[key]
 		if ok && nd.segment != part {
-			return fmt.Errorf("conflicting segment '%s' and '%s' produce same key", nd.segment, part)
+			return fmt.Errorf("conflicting segment %q and %q produce same key", nd.segment, part)
 		}
 
 		if !ok {
@@ -125,7 +131,7 @@ func (r *route) insert(tree map[string]*node) error {
 
 		if i == len(parts)-1 {
 			if nd.root != "" && nd.root != fPath {
-				return fmt.Errorf("'%s' duplicate route detected: '%s' vs '%s'", r.name, nd.root, fPath)
+				return fmt.Errorf("%q duplicate route detected: %q vs %q", r.name, nd.root, fPath)
 			}
 			nd.root = fPath
 		}

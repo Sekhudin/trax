@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"maps"
 	"sort"
+	"strings"
 
 	"github.com/spf13/viper"
 )
 
-type treeSelector func(selector string) (map[string]any, error)
+type TreeSelector func(selector string) (map[string]any, error)
 
 func buildTree(rs []route) (map[string]*node, error) {
 	tree := make(map[string]*node)
@@ -22,24 +23,28 @@ func buildTree(rs []route) (map[string]*node, error) {
 	return tree, nil
 }
 
-func newTreeSelector(tree map[string]any) (treeSelector, error) {
+func newTreeSelector(tree map[string]any) (TreeSelector, error) {
+	prefix := viper.GetString("routes.prefix")
+
 	v := viper.New()
 
-	v.SetDefault(prefRoute, tree[prefRoute])
+	v.SetDefault(prefix, tree[prefix])
 
 	return func(selector string) (map[string]any, error) {
 		if selector != "" {
-			selector = fmt.Sprintf("%s.%s", prefRoute, selector)
+			selector = fmt.Sprintf("%s.%s", prefix, selector)
 		} else {
-			selector = prefRoute
+			selector = prefix
 		}
 
+		selector = strings.TrimSuffix(selector, ".")
+		selector = strings.ReplaceAll(selector, "?", "$")
 		val := v.Get(selector)
 
 		switch v := val.(type) {
 
 		case nil:
-			return nil, fmt.Errorf("'%s' not found", selector)
+			return nil, fmt.Errorf("%q not found", selector)
 
 		case map[string]any:
 			return v, nil
@@ -51,7 +56,7 @@ func newTreeSelector(tree map[string]any) (treeSelector, error) {
 
 		default:
 			return nil, fmt.Errorf(
-				"invalid type for selector '%s': %T",
+				"invalid type for selector %q: %T",
 				selector,
 				val,
 			)
