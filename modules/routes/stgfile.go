@@ -7,10 +7,10 @@ import (
 )
 
 type RoutesFile struct {
-	Routes []RawRoute `mapstructure:"routes"`
+	Routes []Raw `mapstructure:"routes"`
 }
 
-func loadRoutesFile(c *RoutesConfig) ([]RawRoute, error) {
+func loadRoutesFile(c *RoutesConfig) ([]Raw, error) {
 	v := viper.New()
 
 	v.SetConfigFile(c.File.Full)
@@ -34,28 +34,28 @@ func loadRoutesFile(c *RoutesConfig) ([]RawRoute, error) {
 	return rFile.Routes, nil
 }
 
-func ShowFromFile(c *RoutesConfig) (SelectorFunc, error) {
-	rRoutes, err := loadRoutesFile(c)
+func ShowFromFile(c *RoutesConfig) (TreeSelector, error) {
+	rFile, err := loadRoutesFile(c)
 	if err != nil {
 		return nil, err
 	}
 
-	routes, err := BuildRoutes(rRoutes)
+	routes, err := BuildRoutes(rFile)
 	if err != nil {
 		return nil, err
 	}
 
-	rTree, err := BuildRouteTree(routes)
+	tree, err := BuildTree(routes)
 	if err != nil {
 		return nil, err
 	}
 
-	rSelector, err := NewTreeSelector(ToMap(rTree))
+	tSelector, err := NewTreeSelector(ToMap(tree))
 	if err != nil {
 		return nil, err
 	}
 
-	return rSelector, nil
+	return tSelector, nil
 }
 
 func GenerateFromFile(c *RoutesConfig) (*[]Route, error) {

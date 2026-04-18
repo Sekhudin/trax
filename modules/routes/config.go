@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -19,6 +20,10 @@ type RoutesConfig struct {
 }
 
 var (
+	prefRoute = "routes"
+	identRgx  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	staticRgx = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
 	fileExts   = []string{".json", ".yaml", ".yml"}
 	outputExts = []string{".js", ".ts"}
 	strategies = []string{"file", "next-app", "next-page"}
