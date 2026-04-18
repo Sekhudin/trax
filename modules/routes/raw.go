@@ -5,13 +5,13 @@ import (
 	"strings"
 )
 
-type Raw struct {
+type raw struct {
 	Name string `mapstructure:"name"`
 	Path string `mapstructure:"path"`
 }
 
-func (r *Raw) cleanPath() (string, error) {
-	r.Path = strings.TrimSpace(r.Path)
+func (r *raw) cleanPath() (string, error) {
+	r.Path = strings.TrimSpace(r.Path);
 
 	if !strings.HasPrefix(r.Path, "/") {
 		return "", fmt.Errorf("'%s' path must start with '/': %s", r.Name, r.Path)
@@ -32,7 +32,7 @@ func (r *Raw) cleanPath() (string, error) {
 	return r.Path, nil
 }
 
-func (r *Raw) splitPath() []string {
+func (r *raw) splitPath() []string {
 	parts := strings.Split(fmt.Sprintf("%s%s", prefRoute, r.Path), "/")
 	var result []string
 
@@ -45,7 +45,7 @@ func (r *Raw) splitPath() []string {
 	return result
 }
 
-func (r *Raw) validateParts(parts []string) error {
+func (r *raw) validateParts(parts []string) error {
 	for i, p := range parts {
 		if p == "*" && i != len(parts)-1 {
 			return fmt.Errorf("'%s' path wildcard must be last segment", r.Name)

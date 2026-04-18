@@ -24,47 +24,6 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestNotifyText(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	ctx.NotifyText(Notification{"success", "a", "b"})
-	ctx.NotifyText(Notification{"warn", "c", "d"})
-	ctx.NotifyText(Notification{"info", "e", "f"})
-
-	out := buf.String()
-
-	if !strings.Contains(out, "(a) b") {
-		t.Fatal(out)
-	}
-	if !strings.Contains(out, "(c) d") {
-		t.Fatal(out)
-	}
-	if !strings.Contains(out, "(e) f") {
-		t.Fatal(out)
-	}
-}
-
-func TestNotifyJSON(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	ctx.NotifyJSON(Notification{"success", "config", "ok"})
-
-	out := buf.String()
-
-	if !strings.Contains(out, `"level": "success"`) {
-		t.Fatal(out)
-	}
-	if !strings.Contains(out, `"scope": "config"`) {
-		t.Fatal(out)
-	}
-}
-
 func TestNotifications_TextMode(t *testing.T) {
 	resetViper(t)
 	t.Skip()

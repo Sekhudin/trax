@@ -8,12 +8,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-type TreeSelector func(selector string) (map[string]any, error)
+type treeSelector func(selector string) (map[string]any, error)
 
-func BuildTree(routes []Route) (map[string]*Node, error) {
-	tree := make(map[string]*Node)
+func buildTree(rs []route) (map[string]*node, error) {
+	tree := make(map[string]*node)
 
-	for _, r := range routes {
+	for _, r := range rs {
 		if err := r.insert(tree); err != nil {
 			return nil, err
 		}
@@ -22,7 +22,7 @@ func BuildTree(routes []Route) (map[string]*Node, error) {
 	return tree, nil
 }
 
-func NewTreeSelector(tree map[string]any) (TreeSelector, error) {
+func newTreeSelector(tree map[string]any) (treeSelector, error) {
 	v := viper.New()
 
 	v.SetDefault(prefRoute, tree[prefRoute])
@@ -59,17 +59,17 @@ func NewTreeSelector(tree map[string]any) (TreeSelector, error) {
 	}, nil
 }
 
-func ToMap(nodes map[string]*Node) map[string]any {
-	keys := make([]string, 0, len(nodes))
-	for k := range nodes {
+func toMap(nds map[string]*node) map[string]any {
+	keys := make([]string, 0, len(nds))
+	for k := range nds {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	result := make(map[string]any, len(nodes))
+	result := make(map[string]any, len(nds))
 
 	for _, k := range keys {
-		n := nodes[k]
+		n := nds[k]
 
 		if n == nil {
 			continue
@@ -77,12 +77,12 @@ func ToMap(nodes map[string]*Node) map[string]any {
 
 		m := make(map[string]any)
 
-		if n.Root != "" {
-			m["root"] = n.Root
+		if n.root != "" {
+			m["root"] = n.root
 		}
 
-		if len(n.Children) > 0 {
-			maps.Copy(m, ToMap(n.Children))
+		if len(n.children) > 0 {
+			maps.Copy(m, toMap(n.children))
 		}
 
 		result[k] = m

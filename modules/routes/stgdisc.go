@@ -1,10 +1,10 @@
 package routes
 
-func loadRoutesDiscovery() {
+func loadRoutesDisc() {
 }
 
-func ShowFromDiscovery(c *RoutesConfig) {
+func ShowFromDisc(cfg *RoutesConfig) {
 }
 
-func GenerateFromDiscovery(c *RoutesConfig) {
+func GenerateFromDisc(cfg *RoutesConfig) {
 }

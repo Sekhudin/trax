@@ -12,15 +12,15 @@ import (
 	"trax/internal/output"
 )
 
-type Context struct {
+type context struct {
 	Writer io.Writer
 }
 
-func New(w io.Writer) *Context {
-	return &Context{Writer: w}
+func New(w io.Writer) *context {
+	return &context{Writer: w}
 }
 
-func (c *Context) PrintText(err error) {
+func (c *context) PrintText(err error) {
 	switch e := err.(type) {
 	case *appErr.CoreError:
 		fmt.Fprintf(c.Writer, "%s %s:", output.IconError, output.Bold(e.Code))
@@ -40,7 +40,7 @@ func (c *Context) PrintText(err error) {
 	}
 }
 
-func (c *Context) PrintJSON(err error) {
+func (c *context) PrintJSON(err error) {
 	payload := map[string]any{
 		"error": err.Error(),
 	}
@@ -59,7 +59,7 @@ func (c *Context) PrintJSON(err error) {
 	fmt.Fprintln(c.Writer, string(b))
 }
 
-func (c *Context) Print(err error) {
+func (c *context) Print(err error) {
 	if err == nil {
 		return
 	}
@@ -72,7 +72,7 @@ func (c *Context) Print(err error) {
 	c.PrintText(err)
 }
 
-func (c *Context) ExitCode(err error) int {
+func (c *context) ExitCode(err error) int {
 	var ce *appErr.CoreError
 	if errors.As(err, &ce) {
 		switch ce.Code {

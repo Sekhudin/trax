@@ -5,23 +5,23 @@ import (
 	"strings"
 )
 
-type Route struct {
-	Name  string
-	Path  string
-	Parts []string
+type route struct {
+	name  string
+	path  string
+	parts []string
 }
 
-type Node struct {
-	Root     string
-	Segment  string
-	Kind     string
-	Children map[string]*Node
+type node struct {
+	root     string
+	segment  string
+	kind     string
+	children map[string]*node
 }
 
-func BuildRoutes(raw []Raw) ([]Route, error) {
-	routes := make([]Route, 0, len(raw))
+func buildRoutes(rw []raw) ([]route, error) {
+	rs := make([]route, 0, len(rw))
 
-	for _, r := range raw {
+	for _, r := range rw {
 		clean, err := r.cleanPath()
 		if err != nil {
 			return nil, err
@@ -32,17 +32,17 @@ func BuildRoutes(raw []Raw) ([]Route, error) {
 			return nil, err
 		}
 
-		routes = append(routes, Route{
-			Name:  r.Name,
-			Path:  clean,
-			Parts: parts,
+		rs = append(rs, route{
+			name:  r.Name,
+			path:  clean,
+			parts: parts,
 		})
 	}
 
-	return routes, nil
+	return rs, nil
 }
 
-func (r *Route) normalizePart(part string) (string, string, error) {
+func (r *route) normalizePart(part string) (string, string, error) {
 	part = strings.ToLower(part)
 	if part == "*" {
 		return "$wildcard", "wildcard", nil
@@ -50,13 +50,13 @@ func (r *Route) normalizePart(part string) (string, string, error) {
 
 	if cut, found := strings.CutPrefix(part, ":"); found {
 		if !identRgx.MatchString(cut) {
-			return "", "", fmt.Errorf("'%s' invalid param name: %s", r.Name, cut)
+			return "", "", fmt.Errorf("'%s' invalid param name: %s", r.name, cut)
 		}
 		return "$" + cut, "param", nil
 	}
 
 	if !staticRgx.MatchString(part) {
-		return "", "", fmt.Errorf("'%s' invalid path segment: %s", r.Name, part)
+		return "", "", fmt.Errorf("'%s' invalid path segment: %s", r.name, part)
 	}
 
 	if strings.Contains(part, "-") {
@@ -72,31 +72,31 @@ func (r *Route) normalizePart(part string) (string, string, error) {
 	return part, "static", nil
 }
 
-func (r *Route) validateChild(current map[string]*Node, kind string) error {
+func (r *route) validateChild(current map[string]*node, kind string) error {
 	for _, c := range current {
-		if kind == "wildcard" || c.Kind == "wildcard" {
-			return fmt.Errorf("'%s' path wildcard route cannot coexist with other routes at the same level", r.Name)
+		if kind == "wildcard" || c.kind == "wildcard" {
+			return fmt.Errorf("'%s' path wildcard route cannot coexist with other routes at the same level", r.name)
 		}
 
-		if kind == "param" && c.Kind == "static" {
-			return fmt.Errorf("'%s' path param route conflicts with existing static route", r.Name)
+		if kind == "param" && c.kind == "static" {
+			return fmt.Errorf("'%s' path param route conflicts with existing static route", r.name)
 		}
 
-		if kind == "static" && c.Kind == "param" {
-			return fmt.Errorf("'%s' path static route conflicts with existing param route", r.Name)
+		if kind == "static" && c.kind == "param" {
+			return fmt.Errorf("'%s' path static route conflicts with existing param route", r.name)
 		}
 
-		if kind == "param" && c.Kind == "param" {
-			return fmt.Errorf("'%s' path multiple param routes at the same level are not allowed", r.Name)
+		if kind == "param" && c.kind == "param" {
+			return fmt.Errorf("'%s' path multiple param routes at the same level are not allowed", r.name)
 		}
 	}
 
 	return nil
 }
 
-func (r *Route) insert(tree map[string]*Node) error {
-	parts := r.Parts
-	fullPath := r.Path
+func (r *route) insert(tree map[string]*node) error {
+	parts := r.parts
+	fPath := r.path
 	current := tree
 
 	for i, part := range parts {
@@ -109,28 +109,28 @@ func (r *Route) insert(tree map[string]*Node) error {
 			return err
 		}
 
-		node, ok := current[key]
-		if ok && node.Segment != part {
-			return fmt.Errorf("conflicting segment '%s' and '%s' produce same key", node.Segment, part)
+		nd, ok := current[key]
+		if ok && nd.segment != part {
+			return fmt.Errorf("conflicting segment '%s' and '%s' produce same key", nd.segment, part)
 		}
 
 		if !ok {
-			node = &Node{
-				Children: make(map[string]*Node),
-				Kind:     kind,
-				Segment:  part,
+			nd = &node{
+				children: make(map[string]*node),
+				kind:     kind,
+				segment:  part,
 			}
-			current[key] = node
+			current[key] = nd
 		}
 
 		if i == len(parts)-1 {
-			if node.Root != "" && node.Root != fullPath {
-				return fmt.Errorf("'%s' duplicate route detected: '%s' vs '%s'", r.Name, node.Root, fullPath)
+			if nd.root != "" && nd.root != fPath {
+				return fmt.Errorf("'%s' duplicate route detected: '%s' vs '%s'", r.name, nd.root, fPath)
 			}
-			node.Root = fullPath
+			nd.root = fPath
 		}
 
-		current = node.Children
+		current = nd.children
 	}
 
 	return nil

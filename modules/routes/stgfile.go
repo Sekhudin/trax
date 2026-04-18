@@ -6,11 +6,11 @@ import (
 	"github.com/spf13/viper"
 )
 
-type RoutesFile struct {
-	Routes []Raw `mapstructure:"routes"`
+type routesFile struct {
+	Routes []raw `mapstructure:"routes"`
 }
 
-func loadRoutesFile(c *RoutesConfig) ([]Raw, error) {
+func loadRoutesFile(c *RoutesConfig) ([]raw, error) {
 	v := viper.New()
 
 	v.SetConfigFile(c.File.Full)
@@ -21,7 +21,7 @@ func loadRoutesFile(c *RoutesConfig) ([]Raw, error) {
 		return nil, fmt.Errorf("failed to read routes file: %w", err)
 	}
 
-	var rFile RoutesFile
+	var rFile routesFile
 
 	if err := v.Unmarshal(&rFile); err != nil {
 		return nil, fmt.Errorf("failed to parse routes schema: %w", err)
@@ -34,23 +34,23 @@ func loadRoutesFile(c *RoutesConfig) ([]Raw, error) {
 	return rFile.Routes, nil
 }
 
-func ShowFromFile(c *RoutesConfig) (TreeSelector, error) {
+func ShowFromFile(c *RoutesConfig) (treeSelector, error) {
 	rFile, err := loadRoutesFile(c)
 	if err != nil {
 		return nil, err
 	}
 
-	routes, err := BuildRoutes(rFile)
+	routes, err := buildRoutes(rFile)
 	if err != nil {
 		return nil, err
 	}
 
-	tree, err := BuildTree(routes)
+	tree, err := buildTree(routes)
 	if err != nil {
 		return nil, err
 	}
 
-	tSelector, err := NewTreeSelector(ToMap(tree))
+	tSelector, err := newTreeSelector(toMap(tree))
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +58,13 @@ func ShowFromFile(c *RoutesConfig) (TreeSelector, error) {
 	return tSelector, nil
 }
 
-func GenerateFromFile(c *RoutesConfig) (*[]Route, error) {
+func GenerateFromFile(c *RoutesConfig) (*[]route, error) {
 	rRoutes, err := loadRoutesFile(c)
 	if err != nil {
 		return nil, err
 	}
 
-	routes, err := BuildRoutes(rRoutes)
+	routes, err := buildRoutes(rRoutes)
 	if err != nil {
 		return nil, err
 	}
