@@ -8,13 +8,11 @@ import (
 	"strings"
 )
 
-type stgNext struct{}
-
 type stgNextPage struct{}
 
 type stgNextApp struct{}
 
-type stgNextAffixRule struct {
+type stgNextRule struct {
 	Params affix
 	Slug   affix
 	OSlug  affix
@@ -27,7 +25,7 @@ type stgNextAffixRule struct {
 	TripleDotAffix affix
 }
 
-var stgNextAffix = stgNextAffixRule{
+var nextRule = stgNextRule{
 	Params: affix{pre: "[", suf: "]"},
 	Slug:   affix{pre: "[..", suf: "]"},
 	OSlug:  affix{pre: "[[...", suf: "]]"},
@@ -75,32 +73,32 @@ var nextAppRule = rule{
 }
 
 func (stgNextPage) shouldSkip(p string, d fs.DirEntry) error {
-	return stgNextShouldSkip(d)
+	return nextRule.shouldSkip(d)
 }
 
 func (stgNextPage) normalizeSegment(seg string) (string, error) {
-	return stgNextNormalizeSegment(seg)
+	return nextRule.normalizeSegment(seg)
 }
 
 func (stgNextApp) shouldSkip(p string, d fs.DirEntry) error {
-	return stgNextShouldSkip(d)
+	return nextRule.shouldSkip(d)
 }
 
 func (stgNextApp) normalizeSegment(seg string) (string, error) {
-	return stgNextNormalizeSegment(seg)
+	return nextRule.normalizeSegment(seg)
 }
 
-func stgNextNormalizeSegment(seg string) (string, error) {
+func (r *stgNextRule) normalizeSegment(seg string) (string, error) {
 	if seg == "" {
 		return seg, nil
 	}
 
-	kind := stgNextSegmentKind(seg)
+	kind := r.segmentKind(seg)
 	if kind == "Static" {
 		return seg, nil
 	}
 
-	a, err := stgNextGetAffix(kind)
+	a, err := r.getAffix(kind)
 	if err != nil {
 		return "", err
 	}
@@ -127,15 +125,15 @@ func stgNextNormalizeSegment(seg string) (string, error) {
 	}
 }
 
-func stgNextSegmentKind(seg string) string {
+func (r *stgNextRule) segmentKind(seg string) string {
 	switch {
-	case strings.HasPrefix(seg, stgNextAffix.OSlug.pre):
+	case strings.HasPrefix(seg, r.OSlug.pre):
 		return "OSlug"
 
-	case strings.HasPrefix(seg, stgNextAffix.Slug.pre):
+	case strings.HasPrefix(seg, r.Slug.pre):
 		return "Slug"
 
-	case strings.HasPrefix(seg, stgNextAffix.Params.pre):
+	case strings.HasPrefix(seg, r.Params.pre):
 		return "Params"
 
 	default:
@@ -143,31 +141,31 @@ func stgNextSegmentKind(seg string) string {
 	}
 }
 
-func stgNextGetAffix(field string) (affix, error) {
-	r := reflect.ValueOf(stgNextAffix)
-	f := reflect.Indirect(r).FieldByName(field)
+func (r *stgNextRule) getAffix(field string) (affix, error) {
+	rv := reflect.ValueOf(r)
+	rv = reflect.Indirect(rv).FieldByName(field)
 
-	if !f.IsValid() {
+	if !rv.IsValid() {
 		return affix{}, fmt.Errorf("affix struct not found")
 	}
 
-	return f.Interface().(affix), nil
+	return rv.Interface().(affix), nil
 }
 
-func stgNextRemoveAffix(seg string, a affix) string {
+func (r *stgNextRule) removeAffix(seg string, a affix) string {
 	seg = strings.TrimPrefix(seg, a.pre)
 	seg = strings.TrimSuffix(seg, a.suf)
 
 	return seg
 }
 
-func stgNextShouldSkip(d fs.DirEntry) error {
+func (r *stgNextRule) shouldSkip(d fs.DirEntry) error {
 	if d.IsDir() {
 		dir := d.Name()
-		if strings.HasPrefix(dir, stgNextAffix.DotAffix.pre) ||
-			strings.HasPrefix(dir, stgNextAffix.DotDotAffix.pre) ||
-			strings.HasPrefix(dir, stgNextAffix.DoubleDotAffix.pre) ||
-			strings.HasPrefix(dir, stgNextAffix.TripleDotAffix.pre) {
+		if strings.HasPrefix(dir, r.DotAffix.pre) ||
+			strings.HasPrefix(dir, r.DotDotAffix.pre) ||
+			strings.HasPrefix(dir, r.DoubleDotAffix.pre) ||
+			strings.HasPrefix(dir, r.TripleDotAffix.pre) {
 
 			return filepath.SkipDir
 		}

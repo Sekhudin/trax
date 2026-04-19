@@ -4,7 +4,13 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/spf13/viper"
 )
+
+type routefile struct {
+	Routes []raw `mapstructure:"routes"`
+}
 
 type route struct {
 	name  string
@@ -24,7 +30,56 @@ var (
 	staticRgx = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
 
-func buildRoutes(rw []raw) ([]route, error) {
+func (*route) readFile(c *Config) ([]raw, error) {
+	v := viper.New()
+
+	v.SetConfigFile(c.File.Full)
+
+	v.SetDefault("foo", "")
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read routes file: %w", err)
+	}
+
+	var rf routefile
+
+	if err := v.Unmarshal(&rf); err != nil {
+		return nil, fmt.Errorf("failed to parse routes schema: %w", err)
+	}
+
+	if len(rf.Routes) == 0 {
+		return nil, fmt.Errorf("routes file is empty")
+	}
+
+	return rf.Routes, nil
+}
+
+func (*route) readDisc(c *Config) ([]raw, error) {
+	switch c.Strategy {
+	case "next-page":
+		w := walker{cfg: c, rule: &nextPageRule, wRule: stgNextPage{}}
+		r, err := w.walk()
+		if err != nil {
+			return nil, err
+		}
+
+		return r, nil
+
+	case "next-app":
+		w := walker{cfg: c, rule: &nextAppRule, wRule: stgNextApp{}}
+		r, err := w.walk()
+		if err != nil {
+			return nil, err
+		}
+
+		return r, nil
+
+	default:
+		return nil, fmt.Errorf("failed to read routes (strategy: %q)", c.Strategy)
+	}
+}
+
+func (*route) build(rw []raw) ([]route, error) {
 	rs := make([]route, 0, len(rw))
 
 	for _, r := range rw {

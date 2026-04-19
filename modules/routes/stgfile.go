@@ -2,55 +2,29 @@ package routes
 
 import (
 	"fmt"
-
-	"github.com/spf13/viper"
 )
 
-type routesFile struct {
-	Routes []raw `mapstructure:"routes"`
-}
+func ShowFromFile(cfg *Config) (TreeSelector, error) {
+	r := route{}
 
-func loadFromFile(c *RoutesConfig) ([]raw, error) {
-	v := viper.New()
-
-	v.SetConfigFile(c.File.Full)
-
-	v.SetDefault("foo", "")
-
-	if err := v.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read routes file: %w", err)
-	}
-
-	var r routesFile
-
-	if err := v.Unmarshal(&r); err != nil {
-		return nil, fmt.Errorf("failed to parse routes schema: %w", err)
-	}
-
-	if len(r.Routes) == 0 {
-		return nil, fmt.Errorf("routes file is empty")
-	}
-
-	return r.Routes, nil
-}
-
-func ShowFromFile(c *RoutesConfig) (TreeSelector, error) {
-	r, err := loadFromFile(c)
+	rw, err := r.readFile(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	rs, err := buildRoutes(r)
+	rs, err := r.build(rw)
 	if err != nil {
 		return nil, err
 	}
 
-	tr, err := buildTree(rs)
+	t := tree{}
+
+	tr, err := t.build(rs)
 	if err != nil {
 		return nil, err
 	}
 
-	ts, err := newTreeSelector(toMap(tr))
+	ts, err := t.newSelector(t.toMap(tr))
 	if err != nil {
 		return nil, err
 	}
@@ -58,13 +32,15 @@ func ShowFromFile(c *RoutesConfig) (TreeSelector, error) {
 	return ts, nil
 }
 
-func GenerateFromFile(c *RoutesConfig) error {
-	r, err := loadFromFile(c)
+func GenerateFromFile(cfg *Config) error {
+	r := route{}
+
+	rw, err := r.readFile(cfg)
 	if err != nil {
 		return err
 	}
 
-	rs, err := buildRoutes(r)
+	rs, err := r.build(rw)
 	if err != nil {
 		return err
 	}

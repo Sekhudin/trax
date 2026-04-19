@@ -2,48 +2,27 @@ package routes
 
 import "fmt"
 
-func loadFromDisc(c *RoutesConfig) ([]raw, error) {
-	switch c.Strategy {
-	case "next-page":
-		w := walker{cfg: c, rule: &nextPageRule, wRule: stgNextPage{}}
-		r, err := w.walk()
-		if err != nil {
-			return nil, err
-		}
+func ShowFromDisc(cfg *Config) (TreeSelector, error) {
+	r := route{}
 
-		return r, nil
-
-	case "next-app":
-		w := walker{cfg: c, rule: &nextAppRule, wRule: stgNextApp{}}
-		r, err := w.walk()
-		if err != nil {
-			return nil, err
-		}
-
-		return r, nil
-
-	default:
-		return nil, fmt.Errorf("failed to read routes (strategy: %q)", c.Strategy)
-	}
-}
-
-func ShowFromDisc(c *RoutesConfig) (TreeSelector, error) {
-	r, err := loadFromDisc(c)
+	rw, err := r.readDisc(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	rs, err := buildRoutes(r)
+	rs, err := r.build(rw)
 	if err != nil {
 		return nil, err
 	}
 
-	tr, err := buildTree(rs)
+	t := tree{}
+
+	tr, err := t.build(rs)
 	if err != nil {
 		return nil, err
 	}
 
-	ts, err := newTreeSelector(toMap(tr))
+	ts, err := t.newSelector(t.toMap(tr))
 	if err != nil {
 		return nil, err
 	}
@@ -51,15 +30,17 @@ func ShowFromDisc(c *RoutesConfig) (TreeSelector, error) {
 	return ts, nil
 }
 
-func GenerateFromDisc(c *RoutesConfig) error {
-	r, err := loadFromDisc(c)
+func GenerateFromDisc(cfg *Config) error {
+	r := route{}
+
+	rw, err := r.readDisc(cfg)
 	if err != nil {
 		return nil
 	}
 
-	rs, err := buildRoutes(r)
+	rs, err := r.build(rw)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	fmt.Println(rs)

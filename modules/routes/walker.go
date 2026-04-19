@@ -25,7 +25,7 @@ type walkRule interface {
 }
 
 type walker struct {
-	cfg   *RoutesConfig
+	cfg   *Config
 	rule  *rule
 	wRule walkRule
 }
@@ -163,7 +163,7 @@ func (w *walker) buildName(parts []string) string {
 		words = append(words, subs...)
 	}
 
-	return toSnakeCase(words)
+	return w.toSnakeCase(words)
 }
 
 func (w *walker) sanitizeInput(s string) string {
@@ -171,7 +171,7 @@ func (w *walker) sanitizeInput(s string) string {
 	return nonAlnum.ReplaceAllString(s, "")
 }
 
-func toSnakeCase(words []string) string {
+func (w *walker) toSnakeCase(words []string) string {
 	if len(words) == 0 {
 		return ""
 	}

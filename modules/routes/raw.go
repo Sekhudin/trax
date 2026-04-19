@@ -37,10 +37,10 @@ func (r *raw) cleanPath() (string, error) {
 func (r *raw) splitPath() []string {
 	prefix := viper.GetString("routes.prefix")
 
-	parts := strings.Split(fmt.Sprintf("%s%s", prefix, r.Path), "/")
+	ps := strings.Split(fmt.Sprintf("%s%s", prefix, r.Path), "/")
 	var result []string
 
-	for _, p := range parts {
+	for _, p := range ps {
 		if p != "" {
 			result = append(result, p)
 		}

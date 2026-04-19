@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type RoutesConfig struct {
+type Config struct {
 	Strategy string
 	Root     string
 	File     *path.FilePath
@@ -24,8 +24,8 @@ var (
 	strategies = []string{"file", "next-app", "next-page"}
 )
 
-func LoadConfig() (*RoutesConfig, error) {
-	cfg := RoutesConfig{
+func NewConfig() (*Config, error) {
+	cfg := Config{
 		Strategy: viper.GetString("routes.strategy"),
 		Root:     viper.GetString("routes.root"),
 	}
@@ -70,11 +70,11 @@ func LoadConfig() (*RoutesConfig, error) {
 	return &cfg, nil
 }
 
-func (c *RoutesConfig) isValidStartegy() bool {
+func (c *Config) isValidStartegy() bool {
 	return slices.Contains(strategies, c.Strategy)
 }
 
-func (c *RoutesConfig) normalizeRoot() string {
+func (c *Config) normalizeRoot() string {
 	c.Root = filepath.Clean(c.Root)
 
 	var suffix string

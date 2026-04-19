@@ -50,7 +50,7 @@ func sRoutesRunE(cmd *cobra.Command, args []string) error {
 		return appErr.NewFlagReadError("json", err)
 	}
 
-	cfg, err := routes.LoadConfig()
+	cfg, err := routes.NewConfig()
 	if err != nil {
 		return appErr.NewValidationError("routes", err.Error())
 	}

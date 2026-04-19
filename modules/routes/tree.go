@@ -11,24 +11,26 @@ import (
 
 type TreeSelector func(selector string) (map[string]any, error)
 
-func buildTree(rs []route) (map[string]*node, error) {
-	tree := make(map[string]*node)
+type tree struct{}
+
+func (*tree) build(rs []route) (map[string]*node, error) {
+	tr := make(map[string]*node)
 
 	for _, r := range rs {
-		if err := r.insert(tree); err != nil {
+		if err := r.insert(tr); err != nil {
 			return nil, err
 		}
 	}
 
-	return tree, nil
+	return tr, nil
 }
 
-func newTreeSelector(tree map[string]any) (TreeSelector, error) {
+func (*tree) newSelector(tr map[string]any) (TreeSelector, error) {
 	prefix := viper.GetString("routes.prefix")
 
 	v := viper.New()
 
-	v.SetDefault(prefix, tree[prefix])
+	v.SetDefault(prefix, tr[prefix])
 
 	return func(selector string) (map[string]any, error) {
 		if selector != "" {
@@ -64,7 +66,7 @@ func newTreeSelector(tree map[string]any) (TreeSelector, error) {
 	}, nil
 }
 
-func toMap(nds map[string]*node) map[string]any {
+func (t *tree) toMap(nds map[string]*node) map[string]any {
 	keys := make([]string, 0, len(nds))
 	for k := range nds {
 		keys = append(keys, k)
@@ -87,7 +89,7 @@ func toMap(nds map[string]*node) map[string]any {
 		}
 
 		if len(n.children) > 0 {
-			maps.Copy(m, toMap(n.children))
+			maps.Copy(m, t.toMap(n.children))
 		}
 
 		result[k] = m

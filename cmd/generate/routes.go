@@ -38,7 +38,7 @@ func init() {
 func gRoutesRunE(cmd *cobra.Command, args []string) error {
 	out := output.New(cmd.OutOrStdout())
 
-	cfg, err := routes.LoadConfig()
+	cfg, err := routes.NewConfig()
 	if err != nil {
 		return appErr.NewValidationError("routes", err.Error())
 	}
