@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+
+	appErr "trax/internal/errors"
 )
 
 type routerule struct {
@@ -61,7 +63,7 @@ func (*route) readFile(c *Config) ([]rawroute, error) {
 	}
 
 	if len(rf.Routes) == 0 {
-		return nil, fmt.Errorf("routes file is empty")
+		return nil, appErr.NewConfigNotFoundError("routes", "routes file is empty")
 	}
 
 	return rf.Routes, nil
@@ -88,7 +90,8 @@ func (*route) readDisc(cfg *Config) ([]rawroute, error) {
 		return r, nil
 
 	default:
-		return nil, fmt.Errorf("failed to read routes (strategy: %q)", cfg.Strategy)
+		msg := fmt.Sprintf("failed to read routes (strategy: %q)", cfg.Strategy)
+		return nil, appErr.NewValidationError("strategy", msg)
 	}
 }
 
@@ -124,13 +127,17 @@ func (r *route) normalizePart(part string) (string, string, error) {
 
 	if cut, found := strings.CutPrefix(part, ":"); found {
 		if !routeRule.identPattern.MatchString(cut) {
-			return "", "", fmt.Errorf("%q invalid param name: %s", r.name, cut)
+			msg := fmt.Sprintf("%q invalid param name: %s", r.name, cut)
+
+			return "", "", appErr.NewValidationError("path", msg)
 		}
 		return "$" + cut, "param", nil
 	}
 
 	if !routeRule.staticPattern.MatchString(part) {
-		return "", "", fmt.Errorf("%q invalid path segment: %s", r.name, part)
+		msg := fmt.Sprintf("%q invalid path segment: %s", r.name, part)
+
+		return "", "", appErr.NewValidationError("path", msg)
 	}
 
 	if strings.Contains(part, "-") {
@@ -149,19 +156,29 @@ func (r *route) normalizePart(part string) (string, string, error) {
 func (r *route) validateChild(current map[string]*node, kind string) error {
 	for _, c := range current {
 		if kind == "wildcard" || c.kind == "wildcard" {
-			return fmt.Errorf("%q path wildcard route cannot coexist with other routes at the same level", r.name)
+			msg := fmt.Sprintf("%q path wildcard route cannot coexist with other routes at the same level", r.name)
+
+			return appErr.NewValidationError("path", msg)
 		}
 
 		if kind == "param" && c.kind == "static" {
-			return fmt.Errorf("%q path param route conflicts with existing static route", r.name)
+			msg := fmt.Sprintf("%q path param route conflicts with existing static route", r.name)
+
+			return appErr.NewValidationError("path", msg)
+
 		}
 
 		if kind == "static" && c.kind == "param" {
-			return fmt.Errorf("%q path static route conflicts with existing param route", r.name)
+			msg := fmt.Sprintf("%q path static route conflicts with existing param route", r.name)
+
+			return appErr.NewValidationError("path", msg)
+
 		}
 
 		if kind == "param" && c.kind == "param" {
-			return fmt.Errorf("%q path multiple param routes at the same level are not allowed", r.name)
+			msg := fmt.Sprintf("%q path multiple param routes at the same level are not allowed", r.name)
+
+			return appErr.NewValidationError("path", msg)
 		}
 	}
 
@@ -185,7 +202,9 @@ func (r *route) insert(tree map[string]*node) error {
 
 		nd, ok := current[key]
 		if ok && nd.segment != part {
-			return fmt.Errorf("conflicting segment %q and %q produce same key", nd.segment, part)
+			msg := fmt.Sprintf("conflicting segment %q and %q produce same key", nd.segment, part)
+
+			return appErr.NewValidationError("path", msg)
 		}
 
 		if !ok {
@@ -199,7 +218,10 @@ func (r *route) insert(tree map[string]*node) error {
 
 		if i == len(parts)-1 {
 			if nd.root != "" && nd.root != fPath {
-				return fmt.Errorf("%q duplicate route detected: %q vs %q", r.name, nd.root, fPath)
+				msg := fmt.Sprintf("%q duplicate route detected: %q vs %q", r.name, nd.root, fPath)
+
+				return appErr.NewValidationError("path", msg)
+
 			}
 			nd.root = fPath
 		}
@@ -214,11 +236,15 @@ func (r *rawroute) cleanPath() (string, error) {
 	r.Path = strings.TrimSpace(r.Path)
 
 	if !strings.HasPrefix(r.Path, "/") {
-		return "", fmt.Errorf("%q path must start with %q: %s", r.Name, r.Path, "/")
+		msg := fmt.Sprintf("%q path must start with %q", r.Name, "/")
+
+		return "", appErr.NewValidationError("path", msg)
 	}
 
 	if strings.Contains(r.Path, "//") {
-		return "", fmt.Errorf("%q path contains double slash: %s", r.Name, r.Path)
+		msg := fmt.Sprintf("%q path contains double slash: %s", r.Name, r.Path)
+
+		return "", appErr.NewValidationError("path", msg)
 	}
 
 	if i := strings.Index(r.Path, "?"); i > -1 {
@@ -250,11 +276,15 @@ func (r *rawroute) splitPath() []string {
 func (r *rawroute) validateParts(parts []string) error {
 	for i, p := range parts {
 		if p == "*" && i != len(parts)-1 {
-			return fmt.Errorf("%q path wildcard must be last segment", r.Name)
+			msg := fmt.Sprintf("%q path wildcard must be last segment", r.Name)
+
+			return appErr.NewValidationError("path", msg)
 		}
 
 		if strings.Contains(p, "*") && p != "*" {
-			return fmt.Errorf("%q path wildcard must be a single segment %q: %s", r.Name, p, "*")
+			msg := fmt.Sprintf("%q path wildcard must be a single segment %q: %s", r.Name, p, "*")
+
+			return appErr.NewValidationError("path", msg)
 		}
 	}
 	return nil

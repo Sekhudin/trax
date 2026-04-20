@@ -1,10 +1,18 @@
 package routes
 
-import "fmt"
+import (
+	"fmt"
+
+	"trax/internal/fs"
+)
 
 type routereader func(cfg *Config) ([]rawroute, error)
 
 type builder struct{}
+
+type generator struct {
+	writer fs.FileWriter
+}
 
 type finalroute struct {
 	raw      []rawroute
@@ -14,9 +22,12 @@ type finalroute struct {
 }
 
 var (
-	r  = route{}
-	t  = tree{}
-	bd = builder{}
+	r   = route{}
+	t   = tree{}
+	bd  = builder{}
+	gen = generator{
+		writer: fs.NewOSWriter(),
+	}
 )
 
 func Show(cfg *Config) (treeselector, error) {
@@ -36,9 +47,18 @@ func Generate(cfg *Config) error {
 
 	tpl := newTemplate(&route.routes, &route.selector, cfg)
 	tp, err := tpl.build()
+	if err != nil {
+		return err
+	}
 
+	content := []byte(tp)
 	fmt.Println(tp)
-	return nil
+
+	return gen.generate(content, cfg)
+}
+
+func (g *generator) generate(content []byte, cfg *Config) error {
+	return g.writer.Write(cfg.Output.Full, content)
 }
 
 func (*builder) build(cfg *Config) (*finalroute, error) {

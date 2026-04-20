@@ -9,6 +9,8 @@ import (
 	"trax/internal/path"
 
 	"github.com/spf13/viper"
+
+	appErr "trax/internal/errors"
 )
 
 type Config struct {
@@ -41,21 +43,28 @@ func NewConfig() (*Config, error) {
 	output := viper.GetString("routes.output")
 
 	if cfg.Strategy == "" {
-		return nil, fmt.Errorf("strategy: <empty>, %q must be provided", "strategy")
-	}
+		msg := fmt.Sprintf("strategy: <empty>, %q must be provided", "strategy")
 
-	if cfg.IsFileStrategy() && file == "" {
-		return nil, fmt.Errorf("strategy: %q, %q must be provided", cfg.Strategy, "file")
-	}
-
-	if !cfg.IsFileStrategy() && file != "" {
-		return nil, fmt.Errorf("strategy: %q, %q must be unset", cfg.Strategy, "file")
+		return nil, appErr.NewValidationError("strategy", msg)
 	}
 
 	if !cfg.isValidStartegy() {
-		return nil, fmt.Errorf("strategy: %q invalid, allowed: %q",
-			cfg.Strategy,
-			strings.Join(cfgRule.strategies, " | "))
+		msg := fmt.Sprintf("strategy: %q invalid, allowed: %q",
+			cfg.Strategy, strings.Join(cfgRule.strategies, " | "))
+
+		return nil, appErr.NewValidationError("strategy", msg)
+	}
+
+	if cfg.IsFileStrategy() && file == "" {
+		msg := fmt.Sprintf("strategy: %q, %q must be provided", cfg.Strategy, "file")
+
+		return nil, appErr.NewValidationError("file", msg)
+	}
+
+	if !cfg.IsFileStrategy() && file != "" {
+		msg := fmt.Sprintf("strategy: %q, %q must be unset", cfg.Strategy, "file")
+
+		return nil, appErr.NewValidationError("file", msg)
 	}
 
 	if file != "" {

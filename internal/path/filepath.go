@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	appErr "trax/internal/errors"
 )
 
 type FilePath struct {
@@ -17,24 +19,27 @@ type FilePath struct {
 func ParseFilePath(out string, allowedExts []string) (*FilePath, error) {
 	clean := strings.TrimSpace(out)
 	if clean == "" {
-		return nil, fmt.Errorf("path cannot be empty")
+		return nil, appErr.NewValidationError("path", "path cannot be empty")
 	}
 
 	ext := filepath.Ext(clean)
 	if ext == "" {
-		return nil, fmt.Errorf(
+		msg := fmt.Sprintf(
 			"path: %q must include file extension (allowed: %q)",
-			clean,
-			strings.Join(allowedExts, " | "),
+			clean, strings.Join(allowedExts, " | "),
 		)
+
+		return nil, appErr.NewValidationError("path_format", msg)
 	}
 
 	if !isAllowedExt(ext, allowedExts) {
-		return nil, fmt.Errorf(
+		msg := fmt.Sprintf(
 			"unsupported extension: %s (allowed: %q)",
 			ext,
 			strings.Join(allowedExts, " | "),
 		)
+
+		return nil, appErr.NewValidationError("extention", msg)
 	}
 
 	return &FilePath{

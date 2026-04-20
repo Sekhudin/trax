@@ -46,7 +46,7 @@ func init() {
 func (g *generateconfig) runE(cmd *cobra.Command, args []string) error {
 	isOverride, err := g.flags.GetBool("override")
 	if err != nil {
-		return appErr.NewFlagReadError("override", err)
+		return err
 	}
 
 	writeConfig := viper.SafeWriteConfigAs
@@ -56,7 +56,7 @@ func (g *generateconfig) runE(cmd *cobra.Command, args []string) error {
 
 	format, err := g.flags.GetString("format")
 	if err != nil {
-		return appErr.NewFlagReadError("format", err)
+		return err
 	}
 
 	if _, ok := gc.cfgFormat[format]; !ok {

@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	appErr "trax/internal/errors"
 )
 
 type showroutes struct {
@@ -51,7 +49,7 @@ func (s *showroutes) preRunE(cmd *cobra.Command, args []string) error {
 
 	cfg, err := routes.NewConfig()
 	if err != nil {
-		return appErr.NewValidationError("routes", err.Error())
+		return err
 	}
 
 	s.cfg = cfg
@@ -63,22 +61,22 @@ func (s *showroutes) preRunE(cmd *cobra.Command, args []string) error {
 func (s *showroutes) runE(cmd *cobra.Command, args []string) error {
 	key, err := s.flags.GetString("key")
 	if err != nil {
-		return appErr.NewFlagReadError("key", err)
+		return err
 	}
 
 	asJSON, err := s.flags.GetBool("json")
 	if err != nil {
-		return appErr.NewFlagReadError("json", err)
+		return err
 	}
 
 	selector, err := routes.Show(s.cfg)
 	if err != nil {
-		return appErr.NewValidationError("routes", err.Error())
+		return err
 	}
 
 	val, err := selector(key)
 	if err != nil {
-		return appErr.NewIOError("routes", "path not found", err)
+		return err
 	}
 
 	if asJSON {

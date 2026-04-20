@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+
+	appErr "trax/internal/errors"
 )
 
 type nextapp struct{}
@@ -110,7 +112,9 @@ func (n *nextrule) normalizeSegment(seg string) (string, error) {
 
 	if strings.HasPrefix(seg, a.pre) {
 		if !strings.HasSuffix(seg, a.suf) {
-			return "", fmt.Errorf("%q invalid segment", seg)
+			msg := fmt.Sprintf("%q invalid segment", seg)
+
+			return "", appErr.NewInvalidConfigError("path", msg)
 		}
 	}
 
@@ -151,7 +155,7 @@ func (n *nextrule) getAffix(field string) (affix, error) {
 	rv = reflect.Indirect(rv).FieldByName(field)
 
 	if !rv.IsValid() {
-		return affix{}, fmt.Errorf("affix struct not found")
+		return affix{}, appErr.NewInvalidConfigError("path", "affix struct not found")
 	}
 
 	return rv.Interface().(affix), nil

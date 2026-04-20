@@ -7,8 +7,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	appErr "trax/internal/errors"
 )
 
 type showconfig struct {
@@ -40,7 +38,7 @@ func (s *showconfig) preRunE(cmd *cobra.Command, args []string) error {
 func (s *showconfig) runE(cmd *cobra.Command, args []string) error {
 	asJSON, err := s.flags.GetBool("json")
 	if err != nil {
-		return appErr.NewFlagReadError("json", err)
+		return err
 	}
 
 	settings := viper.AllSettings()

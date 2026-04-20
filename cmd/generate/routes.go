@@ -5,19 +5,19 @@ import (
 
 	"trax/internal/docs"
 	"trax/internal/output"
+	"trax/internal/runner"
 	"trax/modules/routes"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-
-	appErr "trax/internal/errors"
 )
 
 type generateroutes struct {
-	flags *pflag.FlagSet
-	out   *output.Context
-	cfg   *routes.Config
+	flags  *pflag.FlagSet
+	out    *output.Context
+	cfg    *routes.Config
+	runner runner.Runner
 }
 
 var (
@@ -32,11 +32,15 @@ var (
 func init() {
 	gr.flags = grCommand.Flags()
 	gr.out = output.New(grCommand.OutOrStdout())
+	gr.runner = runner.NewRunner(grCommand.ErrOrStderr(), grCommand.ErrOrStderr())
 
 	gr.flags.StringP("strategy", "s", "", "route discovery strategy")
 	gr.flags.StringP("root", "r", "", "project root directory used for route discovery")
 	gr.flags.StringP("file", "f", "", "path to a route definition file")
 	gr.flags.StringP("output", "o", "", "output file path")
+
+	gr.flags.StringP("formatter", "t", "", "specify code formatter to use")
+	gr.flags.BoolP("no-format", "n", false, "disable automatic code formatting")
 
 	grCommand.MarkFlagFilename("file", "yaml")
 	grCommand.MarkFlagFilename("output", "ts", "js")
@@ -49,9 +53,11 @@ func (g *generateroutes) preRunE(cmd *cobra.Command, args []string) error {
 	viper.BindPFlag("routes.file", g.flags.Lookup("file"))
 	viper.BindPFlag("routes.output", g.flags.Lookup("output"))
 
+	viper.BindPFlag("formatter", g.flags.Lookup("formatter"))
+
 	cfg, err := routes.NewConfig()
 	if err != nil {
-		return appErr.NewValidationError("routes", err.Error())
+		return err
 	}
 
 	g.cfg = cfg
@@ -69,7 +75,25 @@ func (g *generateroutes) runE(cmd *cobra.Command, args []string) error {
 }
 
 func (g *generateroutes) postRunE(cmd *cobra.Command, args []string) error {
-	g.out.Success("config", "routes written")
+	g.out.Success("routes", "routes written")
+
+	noformat, err := g.flags.GetBool("no-format")
+	if err != nil {
+		return err
+	}
+
+	if noformat {
+		return nil
+	}
+
+	f := viper.GetString("formatter")
+	sf := viper.GetStringMap(fmt.Sprintf("formatters.%s", f))
+
+	if err := g.runner.Run(sf); err != nil {
+		return err
+	}
+
+	g.out.Success("routes", "code formatted successfully")
 
 	return nil
 }

@@ -17,6 +17,9 @@ const (
 	ErrRuntime    ErrorCode = "RUNTIME_EXECUTION_FAILED"
 	ErrDependency ErrorCode = "DEPENDENCY_FAILED"
 	ErrInternal   ErrorCode = "INTERNAL_ERROR"
+
+	ErrInvalidConfig ErrorCode = "INVALID_CONFIGURATION"
+	ErrExecution     ErrorCode = "EXECUTION_FAILED"
 )
 
 type CoreError struct {
@@ -121,6 +124,23 @@ func NewDependencyError(scope, msg string, err error) error {
 func NewInternalError(scope, msg string, err error) error {
 	return &CoreError{
 		Code:    ErrInternal,
+		Scope:   scope,
+		Message: msg,
+		Err:     err,
+	}
+}
+
+func NewInvalidConfigError(scope, msg string) error {
+	return &CoreError{
+		Code:    ErrInvalidConfig,
+		Scope:   scope,
+		Message: msg,
+	}
+}
+
+func NewExecutionError(scope, msg string, err error) error {
+	return &CoreError{
+		Code:    ErrExecution,
 		Scope:   scope,
 		Message: msg,
 		Err:     err,

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
+
+	appErr "trax/internal/errors"
 )
 
 type treeselector func(selector string) (map[string]any, error)
@@ -48,7 +50,9 @@ func (*tree) newSelector(tr map[string]any) (treeselector, error) {
 		switch v := val.(type) {
 
 		case nil:
-			return nil, fmt.Errorf("%q not found", selector)
+			msg := fmt.Sprintf("%q not found", selector)
+
+			return nil, appErr.NewValidationError("selector", msg)
 
 		case map[string]any:
 			return v, nil
@@ -59,11 +63,11 @@ func (*tree) newSelector(tr map[string]any) (treeselector, error) {
 			}, nil
 
 		default:
-			return nil, fmt.Errorf(
-				"invalid type for selector %q: %T",
-				selector,
-				val,
+			msg := fmt.Sprintf("invalid type for selector %q: %T",
+				selector, val,
 			)
+
+			return nil, appErr.NewValidationError("selector", msg)
 		}
 	}, nil
 }
