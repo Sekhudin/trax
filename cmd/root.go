@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	"trax/cmd/generate"
@@ -16,7 +17,9 @@ import (
 )
 
 type trax struct {
-	doc docs.Docs
+	flags  *pflag.FlagSet
+	pFlags *pflag.FlagSet
+	doc    docs.Docs
 }
 
 var (
@@ -39,11 +42,15 @@ var (
 )
 
 func init() {
-	pFlags := command.PersistentFlags()
+	tx.flags = command.Flags()
+	tx.pFlags = command.PersistentFlags()
 
-	pFlags.BoolP("debug", "d", false, "show debug info")
-	pFlags.Bool("no-color", false, "disable color")
-	pFlags.String("config", "", "path to config file")
+	tx.pFlags.BoolP("debug", "d", false, "show debug info")
+	tx.pFlags.Bool("no-color", false, "disable color")
+	tx.pFlags.String("config", "", "path to config file")
+
+	viper.BindPFlag("debug", tx.pFlags.Lookup("debug"))
+	viper.BindPFlag("no-color", tx.pFlags.Lookup("no-color"))
 
 	command.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
 		return appErr.NewValidationError("flag", err.Error())
@@ -52,14 +59,8 @@ func init() {
 	command.AddCommand(generate.Command, show.Command)
 }
 
-func (*trax) persistentPreRunE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-	pFlags := cmd.PersistentFlags()
-
-	viper.BindPFlag("debug", pFlags.Lookup("debug"))
-	viper.BindPFlag("no-color", pFlags.Lookup("no-color"))
-
-	cfgFile, err := flags.GetString("config")
+func (t *trax) persistentPreRunE(cmd *cobra.Command, args []string) error {
+	cfgFile, err := t.flags.GetString("config")
 	if err != nil {
 		return appErr.NewFlagReadError("config", err)
 	}

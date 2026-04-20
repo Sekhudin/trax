@@ -18,8 +18,9 @@ func color(code string, v ...any) string {
 	s := fmt.Sprint(v...)
 
 	noColor := viper.GetBool("no-color")
+	debug := viper.GetBool("debug")
 
-	if noColor {
+	if noColor || debug {
 		return s
 	}
 
