@@ -8,63 +8,68 @@ import (
 	"trax/modules/routes"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	appErr "trax/internal/errors"
 )
 
-type generateroutes struct{}
+type generateroutes struct {
+	flags *pflag.FlagSet
+	out   *output.Context
+	cfg   *routes.Config
+}
 
 var (
 	gr        = generateroutes{}
 	grCommand = docs.ApplyDocs(&doc.routes, &cobra.Command{
-		PreRunE: gr.preRunE,
-		RunE:    gr.runE,
+		PreRunE:  gr.preRunE,
+		RunE:     gr.runE,
+		PostRunE: gr.postRunE,
 	})
 )
 
 func init() {
-	flags := grCommand.Flags()
+	gr.flags = grCommand.Flags()
+	gr.out = output.New(grCommand.OutOrStdout())
 
-	flags.StringP("strategy", "s", "", "route discovery strategy")
-	flags.StringP("root", "r", "", "project root directory used for route discovery")
-	flags.StringP("file", "f", "", "path to a route definition file")
-	flags.StringP("output", "o", "", "output file path")
+	gr.flags.StringP("strategy", "s", "", "route discovery strategy")
+	gr.flags.StringP("root", "r", "", "project root directory used for route discovery")
+	gr.flags.StringP("file", "f", "", "path to a route definition file")
+	gr.flags.StringP("output", "o", "", "output file path")
 
 	grCommand.MarkFlagFilename("file", "yaml")
 	grCommand.MarkFlagFilename("output", "ts", "js")
 	grCommand.MarkFlagDirname("root")
 }
 
-func (*generateroutes) preRunE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-
-	viper.BindPFlag("routes.strategy", flags.Lookup("strategy"))
-	viper.BindPFlag("routes.root", flags.Lookup("root"))
-	viper.BindPFlag("routes.file", flags.Lookup("file"))
-	viper.BindPFlag("routes.output", flags.Lookup("output"))
-
-	return nil
-}
-
-func (*generateroutes) runE(cmd *cobra.Command, args []string) error {
-	out := output.New(cmd.OutOrStdout())
+func (g *generateroutes) preRunE(cmd *cobra.Command, args []string) error {
+	viper.BindPFlag("routes.strategy", g.flags.Lookup("strategy"))
+	viper.BindPFlag("routes.root", g.flags.Lookup("root"))
+	viper.BindPFlag("routes.file", g.flags.Lookup("file"))
+	viper.BindPFlag("routes.output", g.flags.Lookup("output"))
 
 	cfg, err := routes.NewConfig()
 	if err != nil {
 		return appErr.NewValidationError("routes", err.Error())
 	}
 
-	var file string
-	if cfg.IsFileStrategy() {
-		file = fmt.Sprintf(", file: %q", cfg.File.Full)
-	}
+	g.cfg = cfg
+	g.out.Info("routes", fmt.Sprintf("generating using %q strategy\n", g.cfg.Strategy))
 
-	out.Info("routes", fmt.Sprintf("generating using %q strategy %s\n", cfg.Strategy, file))
+	return nil
+}
 
-	if err := routes.Generate(cfg); err != nil {
+func (g *generateroutes) runE(cmd *cobra.Command, args []string) error {
+	if err := routes.Generate(g.cfg); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (g *generateroutes) postRunE(cmd *cobra.Command, args []string) error {
+	g.out.Success("config", "routes written")
 
 	return nil
 }

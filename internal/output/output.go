@@ -11,7 +11,7 @@ import (
 	appErr "trax/internal/errors"
 )
 
-type context struct {
+type Context struct {
 	Writer io.Writer
 }
 
@@ -21,11 +21,11 @@ type notification struct {
 	Message string
 }
 
-func New(w io.Writer) *context {
-	return &context{Writer: w}
+func New(w io.Writer) *Context {
+	return &Context{Writer: w}
 }
 
-func (c *context) notifyJSON(n notification) {
+func (c *Context) notifyJSON(n notification) {
 	payload := map[string]string{
 		"level":   n.Level,
 		"scope":   n.Scope,
@@ -36,7 +36,7 @@ func (c *context) notifyJSON(n notification) {
 	fmt.Fprintln(c.Writer, string(b))
 }
 
-func (c *context) notifyText(n notification) {
+func (c *Context) notifyText(n notification) {
 	var icon string
 	switch n.Level {
 
@@ -53,7 +53,7 @@ func (c *context) notifyText(n notification) {
 	fmt.Fprintf(c.Writer, "%s (%s) %s\n", icon, n.Scope, n.Message)
 }
 
-func (c *context) Success(scope, msg string) {
+func (c *Context) Success(scope, msg string) {
 	notification := notification{Level: "success", Scope: Green(scope), Message: msg}
 	if viper.GetBool("debug") {
 		c.notifyJSON(notification)
@@ -63,7 +63,7 @@ func (c *context) Success(scope, msg string) {
 	c.notifyText(notification)
 }
 
-func (c *context) Info(scope, msg string) {
+func (c *Context) Info(scope, msg string) {
 	notification := notification{Level: "info", Scope: Blue(scope), Message: msg}
 	if viper.GetBool("debug") {
 		c.notifyJSON(notification)
@@ -73,7 +73,7 @@ func (c *context) Info(scope, msg string) {
 	c.notifyText(notification)
 }
 
-func (c *context) Warn(scope, msg string) {
+func (c *Context) Warn(scope, msg string) {
 	notification := notification{Level: "warn", Scope: Yellow(scope), Message: msg}
 	if viper.GetBool("debug") {
 		c.notifyJSON(notification)
@@ -83,7 +83,7 @@ func (c *context) Warn(scope, msg string) {
 	c.notifyText(notification)
 }
 
-func (c *context) AsJSON(data map[string]any) error {
+func (c *Context) AsJSON(data map[string]any) error {
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return appErr.NewInternalError("config", "failed to marshal data to json", err)
@@ -96,7 +96,7 @@ func (c *context) AsJSON(data map[string]any) error {
 	return nil
 }
 
-func (c *context) AsFlat(prefix string, data map[string]any) error {
+func (c *Context) AsFlat(prefix string, data map[string]any) error {
 	keys := make([]string, 0, len(data))
 	for k := range data {
 		keys = append(keys, k)
@@ -136,7 +136,7 @@ func (c *context) AsFlat(prefix string, data map[string]any) error {
 	return nil
 }
 
-func (c *context) printFlatValue(key string, val any) error {
+func (c *Context) printFlatValue(key string, val any) error {
 	switch v := val.(type) {
 
 	case map[string]any:

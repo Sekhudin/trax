@@ -8,12 +8,17 @@ import (
 	"trax/modules/routes"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	appErr "trax/internal/errors"
 )
 
-type showroutes struct{}
+type showroutes struct {
+	flags *pflag.FlagSet
+	out   *output.Context
+	cfg   *routes.Config
+}
 
 var (
 	sr        = showroutes{}
@@ -24,56 +29,49 @@ var (
 )
 
 func init() {
-	flags := srCommand.Flags()
+	sr.flags = srCommand.Flags()
+	sr.out = output.New(srCommand.OutOrStdout())
 
-	flags.StringP("strategy", "s", "", "route discovery strategy")
-	flags.StringP("root", "r", "", "project root directory used for route discovery")
-	flags.StringP("file", "f", "", "path to a route definition file")
+	sr.flags.StringP("strategy", "s", "", "route discovery strategy")
+	sr.flags.StringP("root", "r", "", "project root directory used for route discovery")
+	sr.flags.StringP("file", "f", "", "path to a route definition file")
 
-	flags.StringP("key", "k", "", "selector key")
-	flags.Bool("json", false, "output as json")
+	sr.flags.StringP("key", "k", "", "selector key")
+	sr.flags.Bool("json", false, "output as json")
 
 	srCommand.MarkFlagFilename("file", "yaml")
 	srCommand.MarkFlagFilename("output", "ts", "js")
 	srCommand.MarkFlagDirname("root")
 }
 
-func (*showroutes) preRunE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-
-	viper.BindPFlag("routes.strategy", flags.Lookup("strategy"))
-	viper.BindPFlag("routes.root", flags.Lookup("root"))
-	viper.BindPFlag("routes.file", flags.Lookup("file"))
-	return nil
-}
-
-func (*showroutes) runE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-	out := output.New(cmd.OutOrStdout())
-
-	key, err := flags.GetString("key")
-	if err != nil {
-		return appErr.NewFlagReadError("key", err)
-	}
-
-	asJSON, err := flags.GetBool("json")
-	if err != nil {
-		return appErr.NewFlagReadError("json", err)
-	}
+func (s *showroutes) preRunE(cmd *cobra.Command, args []string) error {
+	viper.BindPFlag("routes.strategy", s.flags.Lookup("strategy"))
+	viper.BindPFlag("routes.root", s.flags.Lookup("root"))
+	viper.BindPFlag("routes.file", s.flags.Lookup("file"))
 
 	cfg, err := routes.NewConfig()
 	if err != nil {
 		return appErr.NewValidationError("routes", err.Error())
 	}
 
-	var file string
-	if cfg.IsFileStrategy() {
-		file = fmt.Sprintf(", file: %q", cfg.File.Full)
+	s.cfg = cfg
+	s.out.Info("routes", fmt.Sprintf("showing using %q strategy \n", s.cfg.Strategy))
+
+	return nil
+}
+
+func (s *showroutes) runE(cmd *cobra.Command, args []string) error {
+	key, err := s.flags.GetString("key")
+	if err != nil {
+		return appErr.NewFlagReadError("key", err)
 	}
 
-	out.Info("routes", fmt.Sprintf("showing using %q strategy %s\n", cfg.Strategy, file))
+	asJSON, err := s.flags.GetBool("json")
+	if err != nil {
+		return appErr.NewFlagReadError("json", err)
+	}
 
-	selector, err := routes.Show(cfg)
+	selector, err := routes.Show(s.cfg)
 	if err != nil {
 		return appErr.NewValidationError("routes", err.Error())
 	}
@@ -84,10 +82,11 @@ func (*showroutes) runE(cmd *cobra.Command, args []string) error {
 	}
 
 	if asJSON {
-		out.AsJSON(val)
+		s.out.AsJSON(val)
 		return nil
 	}
 
-	out.AsFlat("", val)
+	s.out.AsFlat("", val)
+
 	return nil
 }

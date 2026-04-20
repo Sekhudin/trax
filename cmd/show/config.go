@@ -5,39 +5,48 @@ import (
 	"trax/internal/output"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	appErr "trax/internal/errors"
 )
 
-type showconfig struct{}
+type showconfig struct {
+	flags *pflag.FlagSet
+	out   *output.Context
+}
 
 var (
 	sc        = showconfig{}
 	scCommand = docs.ApplyDocs(&doc.config, &cobra.Command{
-		RunE: sc.runE,
+		PreRunE: sc.preRunE,
+		RunE:    sc.runE,
 	})
 )
 
 func init() {
-	flags := scCommand.Flags()
+	sc.flags = scCommand.Flags()
+	sc.out = output.New(scCommand.OutOrStdout())
 
-	flags.Bool("json", false, "output as json")
+	sc.flags.Bool("json", false, "output as json")
 }
 
-func (*showconfig) runE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-	out := output.New(cmd.OutOrStdout())
+func (s *showconfig) preRunE(cmd *cobra.Command, args []string) error {
+	s.out.Info("config", "showing trax config\n")
 
-	asJSON, err := flags.GetBool("json")
+	return nil
+}
+
+func (s *showconfig) runE(cmd *cobra.Command, args []string) error {
+	asJSON, err := s.flags.GetBool("json")
 	if err != nil {
 		return appErr.NewFlagReadError("json", err)
 	}
 
 	settings := viper.AllSettings()
 	if asJSON {
-		return out.AsJSON(settings)
+		return s.out.AsJSON(settings)
 	}
 
-	return out.AsFlat("", settings)
+	return s.out.AsFlat("", settings)
 }

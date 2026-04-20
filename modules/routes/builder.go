@@ -2,7 +2,7 @@ package routes
 
 import "fmt"
 
-type routereader func(cfg *config) ([]rawroute, error)
+type routereader func(cfg *Config) ([]rawroute, error)
 
 type builder struct{}
 
@@ -19,7 +19,7 @@ var (
 	bd = builder{}
 )
 
-func Show(cfg *config) (treeselector, error) {
+func Show(cfg *Config) (treeselector, error) {
 	route, err := bd.build(cfg)
 	if err != nil {
 		return nil, err
@@ -28,17 +28,20 @@ func Show(cfg *config) (treeselector, error) {
 	return route.selector, nil
 }
 
-func Generate(cfg *config) error {
+func Generate(cfg *Config) error {
 	route, err := bd.build(cfg)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(route.tree)
+	tpl := newTemplate(&route.routes, &route.selector, cfg)
+	tp, err := tpl.build()
+
+	fmt.Println(tp)
 	return nil
 }
 
-func (*builder) build(cfg *config) (*finalroute, error) {
+func (*builder) build(cfg *Config) (*finalroute, error) {
 	var reader routereader
 
 	if cfg.IsFileStrategy() {

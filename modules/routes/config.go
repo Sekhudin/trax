@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type config struct {
+type Config struct {
 	Strategy string
 	Root     string
 	File     *path.FilePath
@@ -31,8 +31,8 @@ var cfgRule = configrule{
 	strategies: []string{"file", "next-app", "next-page"},
 }
 
-func NewConfig() (*config, error) {
-	cfg := config{
+func NewConfig() (*Config, error) {
+	cfg := Config{
 		Strategy: viper.GetString("routes.strategy"),
 		Root:     viper.GetString("routes.root"),
 	}
@@ -77,15 +77,15 @@ func NewConfig() (*config, error) {
 	return &cfg, nil
 }
 
-func (c *config) IsFileStrategy() bool {
+func (c *Config) IsFileStrategy() bool {
 	return c.Strategy == "file"
 }
 
-func (c *config) isValidStartegy() bool {
+func (c *Config) isValidStartegy() bool {
 	return slices.Contains(cfgRule.strategies, c.Strategy)
 }
 
-func (c *config) normalizeRoot() string {
+func (c *Config) normalizeRoot() string {
 	c.Root = filepath.Clean(c.Root)
 
 	var suffix string

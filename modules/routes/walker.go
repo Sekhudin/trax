@@ -26,7 +26,7 @@ type walkerstrategy interface {
 
 type walker struct {
 	strategy walkerstrategy
-	config   *config
+	config   *Config
 	rule     *walkrule
 }
 

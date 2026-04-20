@@ -45,7 +45,7 @@ var (
 	}
 )
 
-func (*route) readFile(c *config) ([]rawroute, error) {
+func (*route) readFile(c *Config) ([]rawroute, error) {
 	v := viper.New()
 
 	v.SetConfigFile(c.File.Full)
@@ -67,7 +67,7 @@ func (*route) readFile(c *config) ([]rawroute, error) {
 	return rf.Routes, nil
 }
 
-func (*route) readDisc(cfg *config) ([]rawroute, error) {
+func (*route) readDisc(cfg *Config) ([]rawroute, error) {
 	switch cfg.Strategy {
 	case "next-app":
 		w := walker{strategy: &nextApp, config: cfg, rule: &nextRule.app}

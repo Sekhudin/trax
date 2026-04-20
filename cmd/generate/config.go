@@ -2,39 +2,49 @@ package generate
 
 import (
 	"fmt"
-	"slices"
-	"strings"
 
 	"trax/internal/docs"
 	"trax/internal/output"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
 	appErr "trax/internal/errors"
 )
 
-type generateconfig struct{}
+type generateconfig struct {
+	flags     *pflag.FlagSet
+	out       *output.Context
+	cfgFormat map[string]struct{}
+}
 
 var (
-	gc        = generateconfig{}
+	gc = generateconfig{
+		cfgFormat: map[string]struct{}{
+			"json": {},
+			"toml": {},
+			"yaml": {},
+			"yml":  {},
+		},
+	}
+
 	gcCommand = docs.ApplyDocs(&doc.config, &cobra.Command{
-		RunE: gc.runE,
+		RunE:     gc.runE,
+		PostRunE: gc.postRunE,
 	})
 )
 
 func init() {
-	flags := gcCommand.Flags()
+	gc.flags = gcCommand.Flags()
+	gc.out = output.New(gcCommand.OutOrStdout())
 
-	flags.Bool("override", false, "overwrite existing config file")
-	flags.StringP("format", "f", "toml", "config format")
+	gc.flags.Bool("override", false, "overwrite existing config file")
+	gc.flags.StringP("format", "f", "toml", "config format")
 }
 
-func (*generateconfig) runE(cmd *cobra.Command, args []string) error {
-	flags := cmd.Flags()
-	out := output.New(cmd.OutOrStdout())
-
-	isOverride, err := flags.GetBool("override")
+func (g *generateconfig) runE(cmd *cobra.Command, args []string) error {
+	isOverride, err := g.flags.GetBool("override")
 	if err != nil {
 		return appErr.NewFlagReadError("override", err)
 	}
@@ -44,16 +54,14 @@ func (*generateconfig) runE(cmd *cobra.Command, args []string) error {
 		writeConfig = viper.WriteConfigAs
 	}
 
-	format, err := flags.GetString("format")
+	format, err := g.flags.GetString("format")
 	if err != nil {
 		return appErr.NewFlagReadError("format", err)
 	}
 
-	formats := []string{"json", "toml", "yaml", "yml"}
-	if !slices.Contains(formats, format) {
+	if _, ok := gc.cfgFormat[format]; !ok {
 		return appErr.NewValidationError("config", fmt.Sprintf(
-			"invalid value %q (allowed: %q)",
-			format, strings.Join(formats, " | "),
+			"invalid value %q (allowed: %q, %q, or %q)", format, "json", "toml", "yaml",
 		))
 	}
 
@@ -62,6 +70,11 @@ func (*generateconfig) runE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	out.Success("config", fmt.Sprintf("config written %s", fileName))
+	return nil
+}
+
+func (g *generateconfig) postRunE(cmd *cobra.Command, args []string) error {
+	g.out.Success("config", "config written")
+
 	return nil
 }
