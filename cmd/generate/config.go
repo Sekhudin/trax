@@ -59,7 +59,7 @@ func (*generateconfig) runE(cmd *cobra.Command, args []string) error {
 
 	fileName := fmt.Sprintf("./trax.%s", format)
 	if err := writeConfig(fileName); err != nil {
-		return appErr.NewIOError("config", "failed to write configuration file", err)
+		return err
 	}
 
 	out.Success("config", fmt.Sprintf("config written %s", fileName))

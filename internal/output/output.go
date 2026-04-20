@@ -144,7 +144,7 @@ func (c *context) printFlatValue(key string, val any) error {
 
 	default:
 		if _, err := fmt.Fprintf(c.Writer, "%s = %v\n", key, v); err != nil {
-			return appErr.NewIOError("stdout", "failed to show output", err)
+			return err
 		}
 	}
 

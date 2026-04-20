@@ -50,26 +50,20 @@ func (*generateroutes) preRunE(cmd *cobra.Command, args []string) error {
 func (*generateroutes) runE(cmd *cobra.Command, args []string) error {
 	out := output.New(cmd.OutOrStdout())
 
-	cfg, err := routes.NewCfg()
+	cfg, err := routes.NewConfig()
 	if err != nil {
 		return appErr.NewValidationError("routes", err.Error())
 	}
 
-	key, _ := cmd.Flags().GetString("strategy")
-	fmt.Println(key, cfg.Strategy)
-
-	if cfg.Strategy == "file" {
-		out.Info("routes", fmt.Sprintf("using route definition file: %q", cfg.File.Full))
-		if err := routes.GenerateFromFile(cfg); err != nil {
-			return appErr.NewIOError("routes", "generation failed", err)
-		}
-
-		return nil
+	var file string
+	if cfg.IsFileStrategy() {
+		file = fmt.Sprintf(", file: %q", cfg.File.Full)
 	}
 
-	out.Info("routes", fmt.Sprintf("discovering routes using strategy: %q", cfg.Strategy))
-	if err := routes.GenerateFromDisc(cfg); err != nil {
-		return appErr.NewIOError("routes", "generation failed", err)
+	out.Info("routes", fmt.Sprintf("generating using %q strategy %s\n", cfg.Strategy, file))
+
+	if err := routes.Generate(cfg); err != nil {
+		return err
 	}
 
 	return nil
