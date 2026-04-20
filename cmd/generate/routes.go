@@ -75,25 +75,21 @@ func (g *generateroutes) runE(cmd *cobra.Command, args []string) error {
 }
 
 func (g *generateroutes) postRunE(cmd *cobra.Command, args []string) error {
-	g.out.Success("routes", "routes written")
-
 	noformat, err := g.flags.GetBool("no-format")
 	if err != nil {
 		return err
 	}
 
-	if noformat {
-		return nil
+	if !noformat {
+		f := viper.GetString("formatter")
+		sf := viper.GetStringMap(fmt.Sprintf("formatters.%s", f))
+
+		if err := g.runner.Run(sf); err != nil {
+			return err
+		}
 	}
 
-	f := viper.GetString("formatter")
-	sf := viper.GetStringMap(fmt.Sprintf("formatters.%s", f))
-
-	if err := g.runner.Run(sf); err != nil {
-		return err
-	}
-
-	g.out.Success("routes", "code formatted successfully")
+	g.out.Success("routes", fmt.Sprintf("routes written %s", output.Green(g.cfg.Output.Full)))
 
 	return nil
 }

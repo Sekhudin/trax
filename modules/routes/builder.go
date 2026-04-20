@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"fmt"
-
 	"trax/internal/fs"
 )
 
@@ -45,14 +43,13 @@ func Generate(cfg *Config) error {
 		return err
 	}
 
-	tpl := newTemplate(&route.routes, &route.selector, cfg)
+	tpl := newTemplate(&route.routes, route.selector, cfg)
 	tp, err := tpl.build()
 	if err != nil {
 		return err
 	}
 
 	content := []byte(tp)
-	fmt.Println(tp)
 
 	return gen.generate(content, cfg)
 }
