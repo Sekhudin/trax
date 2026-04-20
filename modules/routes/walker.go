@@ -13,35 +13,35 @@ type affix struct {
 	suf string
 }
 
-type rule struct {
+type walkrule struct {
 	exts         map[string]struct{}
 	identRoute   map[string]struct{}
 	excludeFiles map[string]struct{}
 }
 
-type walkRule interface {
+type walkerstrategy interface {
 	shouldSkip(p string, d fs.DirEntry) error
 	normalizeSegment(seg string) (string, error)
 }
 
 type walker struct {
-	cfg   *Cfg
-	rule  *rule
-	wRule walkRule
+	strategy walkerstrategy
+	config   *config
+	rule     *walkrule
 }
 
-func (w *walker) walk() ([]raw, error) {
-	var rs []raw
+func (w *walker) walk() ([]rawroute, error) {
+	var rs []rawroute
 
-	c := w.cfg
-	wr := w.wRule
+	c := *w.config
+	ws := w.strategy
 
 	err := filepath.WalkDir(c.Root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if err := wr.shouldSkip(p, d); err != nil {
+		if err := ws.shouldSkip(p, d); err != nil {
 			return err
 		}
 
@@ -64,7 +64,7 @@ func (w *walker) walk() ([]raw, error) {
 
 		path := w.buildPath(segs)
 
-		rs = append(rs, raw{Name: name, Path: path})
+		rs = append(rs, rawroute{Name: name, Path: path})
 
 		return nil
 	})
@@ -122,10 +122,10 @@ func (w *walker) splitSegments(rel string) []string {
 func (w *walker) normalizeSegments(segs []string) ([]string, error) {
 	res := []string{}
 
-	wr := w.wRule
+	ws := w.strategy
 
 	for _, seg := range segs {
-		normal, err := wr.normalizeSegment(seg)
+		normal, err := ws.normalizeSegment(seg)
 		if err != nil {
 			return nil, err
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type TreeSelector func(selector string) (map[string]any, error)
+type treeselector func(selector string) (map[string]any, error)
 
 type tree struct{}
 
@@ -25,7 +25,7 @@ func (*tree) build(rs []route) (map[string]*node, error) {
 	return tr, nil
 }
 
-func (*tree) newSelector(tr map[string]any) (TreeSelector, error) {
+func (*tree) newSelector(tr map[string]any) (treeselector, error) {
 	prefix := viper.GetString("routes.prefix")
 
 	v := viper.New()

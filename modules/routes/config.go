@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Cfg struct {
+type config struct {
 	Strategy string
 	Root     string
 	File     *path.FilePath
@@ -19,14 +19,20 @@ type Cfg struct {
 	Oext     string
 }
 
-var (
-	rExts      = []string{".json", ".yaml", ".yml"}
-	oExts      = []string{".js", ".ts"}
-	strategies = []string{"file", "next-app", "next-page"}
-)
+type configrule struct {
+	fileExts   []string
+	outputExts []string
+	strategies []string
+}
 
-func NewCfg() (*Cfg, error) {
-	cfg := Cfg{
+var cfgRule = configrule{
+	fileExts:   []string{".json", ".yaml", ".yml"},
+	outputExts: []string{".js", ".ts"},
+	strategies: []string{"file", "next-app", "next-page"},
+}
+
+func NewConfig() (*config, error) {
+	cfg := config{
 		Strategy: viper.GetString("routes.strategy"),
 		Root:     viper.GetString("routes.root"),
 	}
@@ -38,29 +44,29 @@ func NewCfg() (*Cfg, error) {
 		return nil, fmt.Errorf("strategy: <empty>, %q must be provided", "strategy")
 	}
 
-	if cfg.Strategy == "file" && file == "" {
+	if cfg.IsFileStrategy() && file == "" {
 		return nil, fmt.Errorf("strategy: %q, %q must be provided", cfg.Strategy, "file")
 	}
 
-	if cfg.Strategy != "file" && file != "" {
+	if !cfg.IsFileStrategy() && file != "" {
 		return nil, fmt.Errorf("strategy: %q, %q must be unset", cfg.Strategy, "file")
 	}
 
 	if !cfg.isValidStartegy() {
 		return nil, fmt.Errorf("strategy: %q invalid, allowed: %q",
 			cfg.Strategy,
-			strings.Join(strategies, " | "))
+			strings.Join(cfgRule.strategies, " | "))
 	}
 
 	if file != "" {
-		oPath, err := path.ParseFilePath(file, rExts)
+		oPath, err := path.ParseFilePath(file, cfgRule.fileExts)
 		if err != nil {
 			return nil, err
 		}
 		cfg.File = oPath
 	}
 
-	oPath, err := path.ParseFilePath(output, oExts)
+	oPath, err := path.ParseFilePath(output, cfgRule.outputExts)
 	if err != nil {
 		return nil, err
 	}
@@ -71,11 +77,15 @@ func NewCfg() (*Cfg, error) {
 	return &cfg, nil
 }
 
-func (c *Cfg) isValidStartegy() bool {
-	return slices.Contains(strategies, c.Strategy)
+func (c *config) IsFileStrategy() bool {
+	return c.Strategy == "file"
 }
 
-func (c *Cfg) normalizeRoot() string {
+func (c *config) isValidStartegy() bool {
+	return slices.Contains(cfgRule.strategies, c.Strategy)
+}
+
+func (c *config) normalizeRoot() string {
 	c.Root = filepath.Clean(c.Root)
 
 	var suffix string

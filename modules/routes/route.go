@@ -8,8 +8,14 @@ import (
 	"github.com/spf13/viper"
 )
 
-type routefile struct {
-	Routes []raw `mapstructure:"routes"`
+type routerule struct {
+	identPattern  *regexp.Regexp
+	staticPattern *regexp.Regexp
+}
+
+type rawroute struct {
+	Name string `mapstructure:"name"`
+	Path string `mapstructure:"path"`
 }
 
 type route struct {
@@ -25,26 +31,33 @@ type node struct {
 	children map[string]*node
 }
 
+type routefile struct {
+	Routes []rawroute `mapstructure:"routes"`
+}
+
 var (
-	identRgx  = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
-	staticRgx = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+	nextApp  = nextapp{}
+	nextPage = nextpage{}
+
+	routeRule = routerule{
+		identPattern:  regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`),
+		staticPattern: regexp.MustCompile(`^[A-Za-z0-9_-]+$`),
+	}
 )
 
-func (*route) readFile(c *Cfg) ([]raw, error) {
+func (*route) readFile(c *config) ([]rawroute, error) {
 	v := viper.New()
 
 	v.SetConfigFile(c.File.Full)
 
-	v.SetDefault("foo", "")
-
 	if err := v.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("failed to read routes file: %w", err)
+		return nil, err
 	}
 
 	var rf routefile
 
 	if err := v.Unmarshal(&rf); err != nil {
-		return nil, fmt.Errorf("failed to parse routes schema: %w", err)
+		return nil, err
 	}
 
 	if len(rf.Routes) == 0 {
@@ -54,10 +67,10 @@ func (*route) readFile(c *Cfg) ([]raw, error) {
 	return rf.Routes, nil
 }
 
-func (*route) readDisc(c *Cfg) ([]raw, error) {
-	switch c.Strategy {
-	case "next-page":
-		w := walker{cfg: c, rule: &nextPageRule, wRule: stgNextPage{}}
+func (*route) readDisc(cfg *config) ([]rawroute, error) {
+	switch cfg.Strategy {
+	case "next-app":
+		w := walker{strategy: &nextApp, config: cfg, rule: &nextRule.app}
 		r, err := w.walk()
 		if err != nil {
 			return nil, err
@@ -65,8 +78,8 @@ func (*route) readDisc(c *Cfg) ([]raw, error) {
 
 		return r, nil
 
-	case "next-app":
-		w := walker{cfg: c, rule: &nextAppRule, wRule: stgNextApp{}}
+	case "next-page":
+		w := walker{strategy: &nextPage, config: cfg, rule: &nextRule.page}
 		r, err := w.walk()
 		if err != nil {
 			return nil, err
@@ -75,11 +88,11 @@ func (*route) readDisc(c *Cfg) ([]raw, error) {
 		return r, nil
 
 	default:
-		return nil, fmt.Errorf("failed to read routes (strategy: %q)", c.Strategy)
+		return nil, fmt.Errorf("failed to read routes (strategy: %q)", cfg.Strategy)
 	}
 }
 
-func (*route) build(rw []raw) ([]route, error) {
+func (*route) build(rw []rawroute) ([]route, error) {
 	rs := make([]route, 0, len(rw))
 
 	for _, r := range rw {
@@ -110,13 +123,13 @@ func (r *route) normalizePart(part string) (string, string, error) {
 	}
 
 	if cut, found := strings.CutPrefix(part, ":"); found {
-		if !identRgx.MatchString(cut) {
+		if !routeRule.identPattern.MatchString(cut) {
 			return "", "", fmt.Errorf("%q invalid param name: %s", r.name, cut)
 		}
 		return "$" + cut, "param", nil
 	}
 
-	if !staticRgx.MatchString(part) {
+	if !routeRule.staticPattern.MatchString(part) {
 		return "", "", fmt.Errorf("%q invalid path segment: %s", r.name, part)
 	}
 
@@ -194,5 +207,55 @@ func (r *route) insert(tree map[string]*node) error {
 		current = nd.children
 	}
 
+	return nil
+}
+
+func (r *rawroute) cleanPath() (string, error) {
+	r.Path = strings.TrimSpace(r.Path)
+
+	if !strings.HasPrefix(r.Path, "/") {
+		return "", fmt.Errorf("%q path must start with %q: %s", r.Name, r.Path, "/")
+	}
+
+	if strings.Contains(r.Path, "//") {
+		return "", fmt.Errorf("%q path contains double slash: %s", r.Name, r.Path)
+	}
+
+	if i := strings.Index(r.Path, "?"); i > -1 {
+		r.Path = r.Path[:i]
+	}
+
+	if len(r.Path) > 1 {
+		r.Path = strings.TrimSuffix(r.Path, "/")
+	}
+
+	return r.Path, nil
+}
+
+func (r *rawroute) splitPath() []string {
+	prefix := viper.GetString("routes.prefix")
+
+	ps := strings.Split(fmt.Sprintf("%s%s", prefix, r.Path), "/")
+	var result []string
+
+	for _, p := range ps {
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+
+	return result
+}
+
+func (r *rawroute) validateParts(parts []string) error {
+	for i, p := range parts {
+		if p == "*" && i != len(parts)-1 {
+			return fmt.Errorf("%q path wildcard must be last segment", r.Name)
+		}
+
+		if strings.Contains(p, "*") && p != "*" {
+			return fmt.Errorf("%q path wildcard must be a single segment %q: %s", r.Name, p, "*")
+		}
+	}
 	return nil
 }
