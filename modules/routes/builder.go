@@ -1,8 +1,6 @@
 package routes
 
-import (
-	"trax/internal/fs"
-)
+import "trax/internal/fs"
 
 type routereader func(cfg *Config) ([]rawroute, error)
 

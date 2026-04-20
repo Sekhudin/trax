@@ -2,6 +2,7 @@ package generate
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"trax/internal/docs"
 	"trax/internal/output"
@@ -16,6 +17,7 @@ import (
 type generateconfig struct {
 	flags     *pflag.FlagSet
 	out       *output.Context
+	cfgFile   string
 	cfgFormat map[string]struct{}
 }
 
@@ -65,16 +67,16 @@ func (g *generateconfig) runE(cmd *cobra.Command, args []string) error {
 		))
 	}
 
-	fileName := fmt.Sprintf("./trax.%s", format)
-	if err := writeConfig(fileName); err != nil {
-		return err
+	g.cfgFile = filepath.Clean(fmt.Sprintf("trax.%s", format))
+	if err := writeConfig(g.cfgFile); err != nil {
+		return appErr.NewConfigLoadError("config", fmt.Sprintf("failed generate config: %q", g.cfgFile), err)
 	}
 
 	return nil
 }
 
 func (g *generateconfig) postRunE(cmd *cobra.Command, args []string) error {
-	g.out.Success("config", "config written")
+	g.out.Success("routes", fmt.Sprintf("config written %s", output.Green(g.cfgFile)))
 
 	return nil
 }

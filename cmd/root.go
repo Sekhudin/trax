@@ -17,9 +17,9 @@ import (
 )
 
 type trax struct {
+	doc    docs.Docs
 	flags  *pflag.FlagSet
 	pFlags *pflag.FlagSet
-	doc    docs.Docs
 }
 
 var (

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	appErr "trax/internal/errors"
 )
 
 type affix struct {
@@ -38,7 +40,7 @@ func (w *walker) walk() ([]rawroute, error) {
 
 	err := filepath.WalkDir(c.Root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return appErr.NewIOError("path", fmt.Sprintf("failed to access path %q", p), err)
 		}
 
 		if err := ws.shouldSkip(p, d); err != nil {
@@ -51,7 +53,7 @@ func (w *walker) walk() ([]rawroute, error) {
 
 		rel, err := filepath.Rel(c.Root, p)
 		if err != nil {
-			return err
+			return appErr.NewInternalError("path", fmt.Sprintf("failed to calculate relative path %q", p), err)
 		}
 
 		segs := w.splitSegments(rel)
