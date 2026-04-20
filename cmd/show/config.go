@@ -10,17 +10,22 @@ import (
 	appErr "trax/internal/errors"
 )
 
-var sConfigCmd = docs.ApplyDocs(sConfigDocs, &cobra.Command{
-	RunE: sConfigRunE,
-})
+type showconfig struct{}
+
+var (
+	sc        = showconfig{}
+	scCommand = docs.ApplyDocs(&doc.config, &cobra.Command{
+		RunE: sc.runE,
+	})
+)
 
 func init() {
-	flags := sConfigCmd.Flags()
+	flags := scCommand.Flags()
 
 	flags.Bool("json", false, "output as json")
 }
 
-func sConfigRunE(cmd *cobra.Command, args []string) error {
+func (*showconfig) runE(cmd *cobra.Command, args []string) error {
 	flags := cmd.Flags()
 	out := output.New(cmd.OutOrStdout())
 

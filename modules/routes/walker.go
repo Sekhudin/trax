@@ -25,7 +25,7 @@ type walkRule interface {
 }
 
 type walker struct {
-	cfg   *Config
+	cfg   *Cfg
 	rule  *rule
 	wRule walkRule
 }

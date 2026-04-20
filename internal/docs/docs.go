@@ -36,7 +36,7 @@ func ApplyGroup(g Group) *cobra.Group {
 	}
 }
 
-func ApplyDocs(d Docs, cmd *cobra.Command) *cobra.Command {
+func ApplyDocs(d *Docs, cmd *cobra.Command) *cobra.Command {
 	if d.GroupID != "" {
 		cmd.GroupID = d.GroupID
 	}

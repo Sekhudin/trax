@@ -30,7 +30,7 @@ var (
 	staticRgx = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
 
-func (*route) readFile(c *Config) ([]raw, error) {
+func (*route) readFile(c *Cfg) ([]raw, error) {
 	v := viper.New()
 
 	v.SetConfigFile(c.File.Full)
@@ -54,7 +54,7 @@ func (*route) readFile(c *Config) ([]raw, error) {
 	return rf.Routes, nil
 }
 
-func (*route) readDisc(c *Config) ([]raw, error) {
+func (*route) readDisc(c *Cfg) ([]raw, error) {
 	switch c.Strategy {
 	case "next-page":
 		w := walker{cfg: c, rule: &nextPageRule, wRule: stgNextPage{}}

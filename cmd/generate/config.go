@@ -14,18 +14,23 @@ import (
 	appErr "trax/internal/errors"
 )
 
-var gConfigCmd = docs.ApplyDocs(gConfigDocs, &cobra.Command{
-	RunE: gConfigRunE,
-})
+type generateconfig struct{}
+
+var (
+	gc        = generateconfig{}
+	gcCommand = docs.ApplyDocs(&doc.config, &cobra.Command{
+		RunE: gc.runE,
+	})
+)
 
 func init() {
-	flags := gConfigCmd.Flags()
+	flags := gcCommand.Flags()
 
 	flags.Bool("override", false, "overwrite existing config file")
 	flags.StringP("format", "f", "toml", "config format")
 }
 
-func gConfigRunE(cmd *cobra.Command, args []string) error {
+func (*generateconfig) runE(cmd *cobra.Command, args []string) error {
 	flags := cmd.Flags()
 	out := output.New(cmd.OutOrStdout())
 

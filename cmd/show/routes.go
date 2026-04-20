@@ -13,12 +13,18 @@ import (
 	appErr "trax/internal/errors"
 )
 
-var sRoutesCmd = docs.ApplyDocs(sRoutesDocs, &cobra.Command{
-	RunE: sRoutesRunE,
-})
+type showroutes struct{}
+
+var (
+	sr        = showroutes{}
+	srCommand = docs.ApplyDocs(&doc.routes, &cobra.Command{
+		PreRunE: sr.preRunE,
+		RunE:    sr.runE,
+	})
+)
 
 func init() {
-	flags := sRoutesCmd.Flags()
+	flags := srCommand.Flags()
 
 	flags.StringP("strategy", "s", "", "route discovery strategy")
 	flags.StringP("root", "r", "", "project root directory used for route discovery")
@@ -27,16 +33,21 @@ func init() {
 	flags.StringP("key", "k", "", "selector key")
 	flags.Bool("json", false, "output as json")
 
+	srCommand.MarkFlagFilename("file", "yaml")
+	srCommand.MarkFlagFilename("output", "ts", "js")
+	srCommand.MarkFlagDirname("root")
+}
+
+func (*showroutes) preRunE(cmd *cobra.Command, args []string) error {
+	flags := cmd.Flags()
+
 	viper.BindPFlag("routes.strategy", flags.Lookup("strategy"))
 	viper.BindPFlag("routes.root", flags.Lookup("root"))
 	viper.BindPFlag("routes.file", flags.Lookup("file"))
-
-	sRoutesCmd.MarkFlagFilename("file", "yaml")
-	sRoutesCmd.MarkFlagFilename("output", "ts", "js")
-	sRoutesCmd.MarkFlagDirname("root")
+	return nil
 }
 
-func sRoutesRunE(cmd *cobra.Command, args []string) error {
+func (*showroutes) runE(cmd *cobra.Command, args []string) error {
 	flags := cmd.Flags()
 	out := output.New(cmd.OutOrStdout())
 
@@ -50,7 +61,7 @@ func sRoutesRunE(cmd *cobra.Command, args []string) error {
 		return appErr.NewFlagReadError("json", err)
 	}
 
-	cfg, err := routes.NewConfig()
+	cfg, err := routes.NewCfg()
 	if err != nil {
 		return appErr.NewValidationError("routes", err.Error())
 	}

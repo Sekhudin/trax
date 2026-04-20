@@ -11,21 +11,22 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Config struct {
+type Cfg struct {
 	Strategy string
 	Root     string
 	File     *path.FilePath
 	Output   *path.FilePath
+	Oext     string
 }
 
 var (
-	cfgExts    = []string{".json", ".yaml", ".yml"}
+	rExts      = []string{".json", ".yaml", ".yml"}
 	oExts      = []string{".js", ".ts"}
 	strategies = []string{"file", "next-app", "next-page"}
 )
 
-func NewConfig() (*Config, error) {
-	cfg := Config{
+func NewCfg() (*Cfg, error) {
+	cfg := Cfg{
 		Strategy: viper.GetString("routes.strategy"),
 		Root:     viper.GetString("routes.root"),
 	}
@@ -52,7 +53,7 @@ func NewConfig() (*Config, error) {
 	}
 
 	if file != "" {
-		oPath, err := path.ParseFilePath(file, cfgExts)
+		oPath, err := path.ParseFilePath(file, rExts)
 		if err != nil {
 			return nil, err
 		}
@@ -70,11 +71,11 @@ func NewConfig() (*Config, error) {
 	return &cfg, nil
 }
 
-func (c *Config) isValidStartegy() bool {
+func (c *Cfg) isValidStartegy() bool {
 	return slices.Contains(strategies, c.Strategy)
 }
 
-func (c *Config) normalizeRoot() string {
+func (c *Cfg) normalizeRoot() string {
 	c.Root = filepath.Clean(c.Root)
 
 	var suffix string

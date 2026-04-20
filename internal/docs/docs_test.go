@@ -54,7 +54,7 @@ func TestApplyDocs_AllFields(t *testing.T) {
 		Example: "example",
 	}
 
-	ApplyDocs(d, cmd)
+	ApplyDocs(&d, cmd)
 
 	if cmd.GroupID != "gen" {
 		t.Fatal("group id not set")
@@ -96,7 +96,7 @@ func TestApplyDocs_IgnoresEmptyFields(t *testing.T) {
 		Use: "", // should NOT override
 	}
 
-	ApplyDocs(d, cmd)
+	ApplyDocs(&d, cmd)
 
 	if cmd.Use != "original" {
 		t.Fatal("empty use should not override")
@@ -121,7 +121,7 @@ func TestApplyDocs_PartialOverride(t *testing.T) {
 		Short: "new short",
 	}
 
-	ApplyDocs(d, cmd)
+	ApplyDocs(&d, cmd)
 
 	if cmd.Short != "new short" {
 		t.Fatal("short should be overridden")

@@ -1,10 +1,8 @@
 package routes
 
-import (
-	"fmt"
-)
+import "fmt"
 
-func ShowFromFile(cfg *Config) (TreeSelector, error) {
+func ShowFromFile(cfg *Cfg) (TreeSelector, error) {
 	r := route{}
 
 	rw, err := r.readFile(cfg)
@@ -32,7 +30,7 @@ func ShowFromFile(cfg *Config) (TreeSelector, error) {
 	return ts, nil
 }
 
-func GenerateFromFile(cfg *Config) error {
+func GenerateFromFile(cfg *Cfg) error {
 	r := route{}
 
 	rw, err := r.readFile(cfg)
@@ -45,7 +43,20 @@ func GenerateFromFile(cfg *Config) error {
 		return err
 	}
 
-	fmt.Println(rs)
+	t := tree{}
+
+	tr, err := t.build(rs)
+	if err != nil {
+		return err
+	}
+
+	ts, err := t.newSelector(t.toMap(tr))
+	if err != nil {
+		return err
+	}
+
+	tpl := newTpl(&rs, &ts, cfg)
+	fmt.Println(tpl.build())
 
 	return nil
 }

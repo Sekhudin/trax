@@ -39,8 +39,10 @@ func (*tree) newSelector(tr map[string]any) (TreeSelector, error) {
 			selector = prefix
 		}
 
+		selector = strings.TrimSuffix(selector, "$")
 		selector = strings.TrimSuffix(selector, ".")
-		selector = strings.ReplaceAll(selector, "?", "$")
+		selector = strings.TrimSuffix(selector, "?")
+		selector = strings.ReplaceAll(selector, "?.", ".$")
 		val := v.Get(selector)
 
 		switch v := val.(type) {

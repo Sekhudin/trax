@@ -1,8 +1,6 @@
 package routes
 
-import "fmt"
-
-func ShowFromDisc(cfg *Config) (TreeSelector, error) {
+func ShowFromDisc(cfg *Cfg) (TreeSelector, error) {
 	r := route{}
 
 	rw, err := r.readDisc(cfg)
@@ -30,20 +28,6 @@ func ShowFromDisc(cfg *Config) (TreeSelector, error) {
 	return ts, nil
 }
 
-func GenerateFromDisc(cfg *Config) error {
-	r := route{}
-
-	rw, err := r.readDisc(cfg)
-	if err != nil {
-		return nil
-	}
-
-	rs, err := r.build(rw)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(rs)
-
+func GenerateFromDisc(cfg *Cfg) error {
 	return nil
 }
