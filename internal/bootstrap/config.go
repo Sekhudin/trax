@@ -22,18 +22,18 @@ var cfg = config{
 		"prefix":    "routes",
 		"root":      "./src",
 		"file":      "",
-		"deps":      []string{"qs"},
+		"no-deps":   false,
 		"output":    "src/trax/routes.ts",
 		"formatter": "biome",
 	},
 	formatters: map[string]any{
 		"biome": map[string]any{
 			"exec": "biome",
-			"args": []string{"check", "--write", "src/trax/routes.ts"},
+			"args": []string{"check", "--write", "src/trax"},
 		},
 		"prettier": map[string]any{
 			"exec": "npx",
-			"args": []string{"prettier", "--write", "src/trax/routes.ts"},
+			"args": []string{"prettier", "--write", "src/trax"},
 		},
 	},
 }

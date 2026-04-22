@@ -30,7 +30,7 @@ func init() {
 }
 
 func (s *showconfig) preRunE(cmd *cobra.Command, args []string) error {
-	s.out.Info("config", "showing trax config\n")
+	s.out.Info("config", "show trax config\n")
 
 	return nil
 }

@@ -40,6 +40,7 @@ func init() {
 	gr.flags.StringP("output", "o", "", "output file path")
 
 	gr.flags.StringP("formatter", "t", "", "specify code formatter to use")
+	gr.flags.BoolP("no-deps", "x", false, "do not include dependencies in the output")
 	gr.flags.BoolP("no-format", "n", false, "disable automatic code formatting")
 
 	grCommand.MarkFlagFilename("file", "yaml")
@@ -52,6 +53,7 @@ func (g *generateroutes) preRunE(cmd *cobra.Command, args []string) error {
 	viper.BindPFlag("routes.root", g.flags.Lookup("root"))
 	viper.BindPFlag("routes.file", g.flags.Lookup("file"))
 	viper.BindPFlag("routes.output", g.flags.Lookup("output"))
+	viper.BindPFlag("routes.no-deps", g.flags.Lookup("no-deps"))
 
 	viper.BindPFlag("formatter", g.flags.Lookup("formatter"))
 
@@ -61,7 +63,7 @@ func (g *generateroutes) preRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	g.cfg = cfg
-	g.out.Info("routes", fmt.Sprintf("generating using %q strategy\n", g.cfg.Strategy))
+	g.out.Info("routes", fmt.Sprintf("using %q strategy (no-deps: %v)\n", g.cfg.Strategy, output.Blue(g.cfg.NoDeps)))
 
 	return nil
 }

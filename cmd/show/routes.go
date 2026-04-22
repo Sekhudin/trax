@@ -53,7 +53,7 @@ func (s *showroutes) preRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	s.cfg = cfg
-	s.out.Info("routes", fmt.Sprintf("showing using %q strategy \n", s.cfg.Strategy))
+	s.out.Info("routes", fmt.Sprintf("using %q strategy \n", s.cfg.Strategy))
 
 	return nil
 }
