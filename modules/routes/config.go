@@ -16,6 +16,7 @@ import (
 type Config struct {
 	Strategy string
 	Root     string
+	NoDeps   bool
 	File     *path.FilePath
 	Output   *path.FilePath
 	Oext     string
@@ -37,6 +38,7 @@ func NewConfig() (*Config, error) {
 	cfg := Config{
 		Strategy: viper.GetString("routes.strategy"),
 		Root:     viper.GetString("routes.root"),
+		NoDeps:   viper.GetBool("routes.no-deps"),
 	}
 
 	file := viper.GetString("routes.file")
