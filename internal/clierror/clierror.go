@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	appErr "trax/internal/errors"
-	"trax/internal/output"
+	appErr "github.com/sekhudin/trax/internal/errors"
+	"github.com/sekhudin/trax/internal/output"
 )
 
 type context struct {

@@ -3,9 +3,9 @@ package show
 import (
 	"fmt"
 
-	"trax/internal/docs"
-	"trax/internal/output"
-	"trax/modules/routes"
+	"github.com/sekhudin/trax/internal/docs"
+	"github.com/sekhudin/trax/internal/output"
+	"github.com/sekhudin/trax/modules/routes"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

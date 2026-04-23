@@ -3,10 +3,10 @@ package generate
 import (
 	"fmt"
 
-	"trax/internal/docs"
-	"trax/internal/output"
-	"trax/internal/runner"
-	"trax/modules/routes"
+	"github.com/sekhudin/trax/internal/docs"
+	"github.com/sekhudin/trax/internal/output"
+	"github.com/sekhudin/trax/internal/runner"
+	"github.com/sekhudin/trax/modules/routes"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"

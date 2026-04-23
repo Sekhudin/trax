@@ -1,7 +1,7 @@
 package generate
 
 import (
-	"trax/internal/docs"
+	"github.com/sekhudin/trax/internal/docs"
 
 	"github.com/spf13/cobra"
 )

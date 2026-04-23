@@ -8,13 +8,13 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"trax/cmd/generate"
-	"trax/cmd/show"
-	"trax/internal/bootstrap"
-	"trax/internal/clierror"
-	"trax/internal/docs"
+	"github.com/sekhudin/trax/cmd/generate"
+	"github.com/sekhudin/trax/cmd/show"
+	"github.com/sekhudin/trax/internal/bootstrap"
+	"github.com/sekhudin/trax/internal/clierror"
+	"github.com/sekhudin/trax/internal/docs"
 
-	appErr "trax/internal/errors"
+	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 type trax struct {

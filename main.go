@@ -1,7 +1,7 @@
 package main
 
 import (
-	"trax/cmd"
+	"github.com/sekhudin/trax/cmd"
 )
 
 func main() {

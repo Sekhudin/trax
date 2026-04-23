@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	appErr "trax/internal/errors"
+	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 type FileWriter interface {

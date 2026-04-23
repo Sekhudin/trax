@@ -5,7 +5,7 @@ import (
 	"io"
 	"os/exec"
 
-	appErr "trax/internal/errors"
+	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 type Runner interface {

@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"trax/internal/docs"
-	"trax/internal/output"
+	"github.com/sekhudin/trax/internal/docs"
+	"github.com/sekhudin/trax/internal/output"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	appErr "trax/internal/errors"
+	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 type generateconfig struct {

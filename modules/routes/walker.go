@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	appErr "trax/internal/errors"
+	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 type affix struct {

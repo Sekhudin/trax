@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	appErr "trax/internal/errors"
+	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 type config struct {

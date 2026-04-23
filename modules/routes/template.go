@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	appErr "trax/internal/errors"
-	"trax/internal/ts"
+	appErr "github.com/sekhudin/trax/internal/errors"
+
+	"github.com/sekhudin/trax/internal/ts"
 )
 
 type template struct {

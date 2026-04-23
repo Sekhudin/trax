@@ -1,8 +1,8 @@
 package show
 
 import (
-	"trax/internal/docs"
-	"trax/internal/output"
+	"github.com/sekhudin/trax/internal/docs"
+	"github.com/sekhudin/trax/internal/output"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
