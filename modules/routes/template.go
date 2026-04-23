@@ -243,7 +243,7 @@ func (t *template) fFillParams() string {
 	b.WriteString(`let result = pattern;`)
 	b.WriteString("\nfor (const key in params) {")
 	b.WriteString("\nconst regexPattern = new RegExp(")
-	b.WriteString(ts.ToTypeLiteral(":${key}\\b"))
+	b.WriteString(ts.ToTypeLiteral(`:${key}\\b`))
 	b.WriteString(`, "g");`)
 	b.WriteString("\nresult = result.replace(regexPattern, String(params[key]));")
 	b.WriteString("\n}")

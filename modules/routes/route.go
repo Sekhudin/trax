@@ -20,6 +20,10 @@ type rawroute struct {
 	Path string `mapstructure:"path"`
 }
 
+type routefile struct {
+	Routes []rawroute `mapstructure:"routes"`
+}
+
 type route struct {
 	name  string
 	path  string
@@ -31,10 +35,6 @@ type node struct {
 	segment  string
 	kind     string
 	children map[string]*node
-}
-
-type routefile struct {
-	Routes []rawroute `mapstructure:"routes"`
 }
 
 var (
@@ -186,44 +186,36 @@ func (r *route) validateChild(current map[string]*node, kind string) error {
 }
 
 func (r *route) insert(tree map[string]*node) error {
-	parts := r.parts
-	fPath := r.path
 	current := tree
 
-	for i, part := range parts {
+	for i, part := range r.parts {
 		key, kind, err := r.normalizePart(part)
 		if err != nil {
 			return err
 		}
 
-		if err := r.validateChild(current, kind); err != nil {
-			return err
-		}
-
 		nd, ok := current[key]
-		if ok && nd.segment != part {
-			msg := fmt.Sprintf("conflicting segment %q and %q produce same key", nd.segment, part)
-
-			return appErr.NewValidationError("path", msg)
-		}
-
 		if !ok {
+			if err := r.validateChild(current, kind); err != nil {
+				return err
+			}
 			nd = &node{
 				children: make(map[string]*node),
 				kind:     kind,
 				segment:  part,
 			}
 			current[key] = nd
+		} else if nd.segment != part {
+			msg := fmt.Sprintf("conflicting segment %q and %q produce same key", nd.segment, part)
+			return appErr.NewValidationError("path", msg)
 		}
 
-		if i == len(parts)-1 {
-			if nd.root != "" && nd.root != fPath {
-				msg := fmt.Sprintf("%q duplicate route detected: %q vs %q", r.name, nd.root, fPath)
-
+		if i == len(r.parts)-1 {
+			if nd.root != "" && nd.root != r.path {
+				msg := fmt.Sprintf("%q duplicate route detected: %q vs %q", r.name, nd.root, r.path)
 				return appErr.NewValidationError("path", msg)
-
 			}
-			nd.root = fPath
+			nd.root = r.path
 		}
 
 		current = nd.children
