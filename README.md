@@ -8,7 +8,7 @@ Trax is a high-performance CLI tool designed to eliminate manual boilerplate by 
 
 ### ⚠️ Alpha Warning
 
-**Trax is currently in early ALPHA (v0.0.1-alpha.1).** This project is experimental and under active development. Automated tests are not yet fully implemented. **Do not use this in production environments** as breaking changes may occur frequently.
+**Trax is currently in early ALPHA.** This project is experimental and under active development. Automated tests are not yet fully implemented. **Do not use this in production environments** as breaking changes may occur frequently.
 
 ---
 
@@ -21,6 +21,16 @@ Trax is a high-performance CLI tool designed to eliminate manual boilerplate by 
 
 ---
 
+## Quick Start & Examples
+
+Explore our official example repository to see how Trax handles complex project layouts:
+
+**[trax-example](https://github.com/sekhudin/trax-example)**
+
+The example provides a complete reference for configuration, folder scanning, and artifact generation.
+
+---
+
 ## Installation
 
 Install the latest version using the Go toolchain:
@@ -29,7 +39,7 @@ Install the latest version using the Go toolchain:
 go install github.com/sekhudin/trax@latest
 ```
 
-**Note**: Ensure your `$GOPATH/bin` is in your system's PATH to run the trax command globally.
+**Note**: Ensure your `$GOPATH/bin` is in your system's PATH to run the `trax` command globally.
 
 ---
 

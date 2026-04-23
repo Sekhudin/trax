@@ -15,14 +15,14 @@ type generatedocs struct {
 var (
 	doc = generatedocs{
 		root: docs.Docs{
-			Use:   "generate",
-			Short: "Generate artifacts",
+			Use:     "generate",
+			Aliases: []string{"g"},
+			Short:   "Generate artifacts",
 		},
 
 		config: docs.Docs{
-			Use:     "config",
-			Aliases: []string{"init"},
-			Short:   "Generate configuration file",
+			Use:   "config",
+			Short: "Generate configuration file",
 			Long: docs.Paragraph(
 				"Generate configuration file for your project",
 				docs.Line(
