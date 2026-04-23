@@ -15,16 +15,19 @@ type nextapp struct{}
 type nextpage struct{}
 
 type nextrule struct {
+	Group affix
+
 	Params affix
 	Slug   affix
 	OSlug  affix
 
-	Group affix
-
+	SlotAffix      affix
 	DotAffix       affix
 	DotDotAffix    affix
 	DoubleDotAffix affix
 	TripleDotAffix affix
+
+	skipedFolders map[string]struct{}
 
 	page walkrule
 	app  walkrule
@@ -38,16 +41,21 @@ var (
 	}
 
 	nextRule = nextrule{
+		Group: affix{pre: "(", suf: ")"},
+
 		Params: affix{pre: "[", suf: "]"},
 		Slug:   affix{pre: "[..", suf: "]"},
 		OSlug:  affix{pre: "[[...", suf: "]]"},
 
-		Group: affix{pre: "(", suf: ")"},
-
+		SlotAffix:      affix{pre: "@"},
 		DotAffix:       affix{pre: "(.)"},
 		DotDotAffix:    affix{pre: "(..)"},
 		DoubleDotAffix: affix{pre: "(..)(..)"},
 		TripleDotAffix: affix{pre: "(...)"},
+
+		skipedFolders: map[string]struct{}{
+			"api": {},
+		},
 
 		app: walkrule{
 			exts: nextExts,
@@ -80,6 +88,10 @@ var (
 )
 
 func (*nextapp) shouldSkip(p string, d fs.DirEntry) error {
+	if nextRule.isSlotDir(d) {
+		return filepath.SkipDir
+	}
+
 	return nextRule.shouldSkip(d)
 }
 
@@ -93,6 +105,34 @@ func (*nextpage) shouldSkip(p string, d fs.DirEntry) error {
 
 func (*nextpage) normalizeSegment(seg string) (string, error) {
 	return nextRule.normalizeSegment(seg)
+}
+
+func (n *nextrule) isSlotDir(d fs.DirEntry) bool {
+	if d.IsDir() {
+		return strings.HasPrefix(d.Name(), nextRule.SlotAffix.pre)
+	}
+
+	return false
+}
+
+func (n *nextrule) shouldSkip(d fs.DirEntry) error {
+	if d.IsDir() {
+		dir := d.Name()
+
+		if _, ok := n.skipedFolders[dir]; ok {
+			return filepath.SkipDir
+		}
+
+		if strings.HasPrefix(dir, n.DotAffix.pre) ||
+			strings.HasPrefix(dir, n.DotDotAffix.pre) ||
+			strings.HasPrefix(dir, n.DoubleDotAffix.pre) ||
+			strings.HasPrefix(dir, n.TripleDotAffix.pre) {
+
+			return filepath.SkipDir
+		}
+	}
+
+	return nil
 }
 
 func (n *nextrule) normalizeSegment(seg string) (string, error) {
@@ -123,6 +163,9 @@ func (n *nextrule) normalizeSegment(seg string) (string, error) {
 	seg = strings.TrimSpace(seg)
 
 	switch kind {
+	case "Group":
+		return "", nil
+
 	case "Params":
 		return fmt.Sprintf(":%s", seg), nil
 
@@ -136,6 +179,9 @@ func (n *nextrule) normalizeSegment(seg string) (string, error) {
 
 func (n *nextrule) segmentKind(seg string) string {
 	switch {
+	case strings.HasPrefix(seg, n.Group.pre) && strings.HasSuffix(seg, n.Group.suf):
+		return "Group"
+
 	case strings.HasPrefix(seg, n.OSlug.pre):
 		return "OSlug"
 
@@ -159,26 +205,4 @@ func (n *nextrule) getAffix(field string) (affix, error) {
 	}
 
 	return rv.Interface().(affix), nil
-}
-
-func (*nextrule) removeAffix(seg string, a affix) string {
-	seg = strings.TrimPrefix(seg, a.pre)
-	seg = strings.TrimSuffix(seg, a.suf)
-
-	return seg
-}
-
-func (n *nextrule) shouldSkip(d fs.DirEntry) error {
-	if d.IsDir() {
-		dir := d.Name()
-		if strings.HasPrefix(dir, n.DotAffix.pre) ||
-			strings.HasPrefix(dir, n.DotDotAffix.pre) ||
-			strings.HasPrefix(dir, n.DoubleDotAffix.pre) ||
-			strings.HasPrefix(dir, n.TripleDotAffix.pre) {
-
-			return filepath.SkipDir
-		}
-	}
-
-	return nil
 }

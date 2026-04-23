@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -104,7 +105,7 @@ func (w *walker) splitSegments(rel string) []string {
 	base := strings.TrimSuffix(rel, ext)
 
 	if _, ok := r.identRoute[base]; ok {
-		res := append(res, "root")
+		res := append(res, "$root")
 
 		return res
 	}
@@ -140,12 +141,16 @@ func (w *walker) normalizeSegments(segs []string) ([]string, error) {
 
 func (*walker) buildPath(segs []string) string {
 	for i, seg := range segs {
-		if seg == "root" {
+		if seg == "$root" {
 			segs[i] = ""
+			continue
 		}
 	}
 
-	return fmt.Sprintf("/%s", strings.Join(segs, "/"))
+	p := fmt.Sprintf("/%s", strings.Join(segs, "/"))
+	p = path.Clean(p)
+
+	return p
 }
 
 var nonAlnum = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
