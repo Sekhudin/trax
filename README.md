@@ -1,49 +1,56 @@
 # Trax
 
-Powering TypeScript project workflows
+**Automate your TypeScript/JavaScript project workflows with Go.**
+
+Trax is a high-performance CLI tool designed to eliminate manual boilerplate by automating route discovery and generating type-safe helpers for your web projects.
 
 ---
 
-## Overview
+### ⚠️ Alpha Warning
 
-Trax is a CLI tool for automating TypeScript project workflows.
-
-It helps you generate and manage project structures with consistent conventions.
+**Trax is currently in early ALPHA (v0.0.1-alpha.1).** This project is experimental and under active development. Automated tests are not yet fully implemented. **Do not use this in production environments** as breaking changes may occur frequently.
 
 ---
 
 ## Features
 
-- Generate TypeScript artifacts
-- Generate type-safe route helpers
-- Inspect project structure
-- Simple configuration via `.trax.config`
+- **Route Discovery**: Automatically scans and maps your project structure.
+- **Multi-Language Support**: Generates artifacts for both **TypeScript** and **JavaScript**.
+- **Type-Safe Helpers**: Create route helpers that prevent broken links and manual string concatenation.
+- **Lightning Fast**: Built with Go for near-instant execution.
 
 ---
 
 ## Installation
 
+Install the latest version using the Go toolchain:
+
 ```bash
-go install github.com/your-username/trax@latest
+go install github.com/sekhudin/trax@latest
 ```
+
+**Note**: Ensure your `$GOPATH/bin` is in your system's PATH to run the trax command globally.
 
 ---
 
-## Usage
+## Project Initialization
+
+Generate a default configuration file in your project root:
 
 ```bash
-trax --help
+trax g config
 ```
+
+This will create a `trax.toml` (default) file where you can define your routing strategies. Trax also supports `.json` and `.yaml` formats.
 
 ---
 
-## Configuration
+### Usage
 
-Trax supports a config file named .trax.config in the project root.
-You can also specify a custom config file:
+To see all available commands and flags:
 
-```bash
-trax --config=path/to/config.json
+```
+trax -h
 ```
 
 ---
