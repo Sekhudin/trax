@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -26,7 +27,7 @@ var (
 	tx = trax{
 		doc: docs.Docs{
 			Use:     "trax",
-			Version: "0.0.1",
+			Version: version(),
 			Short:   "Powering TypeScript project workflows",
 			Long: docs.Paragraph(
 				"Trax is a CLI tool for automating TypeScript project workflows.",
@@ -40,6 +41,15 @@ var (
 		PersistentPreRunE: tx.persistentPreRunE,
 	})
 )
+
+func version() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		if info.Main.Version != "" {
+			return info.Main.Version
+		}
+	}
+	return "dev"
+}
 
 func init() {
 	tx.flags = command.Flags()
