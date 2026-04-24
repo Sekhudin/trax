@@ -110,10 +110,6 @@ func (t *template) importDeps() string {
 	return b.String()
 }
 
-func (*template) importModule(ext string) string {
-	return ext
-}
-
 func (*template) tParams() string {
 	return "type Params = Record<string, string | number>;"
 }

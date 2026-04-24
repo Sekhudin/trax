@@ -15,19 +15,20 @@ type nextapp struct{}
 type nextpage struct{}
 
 type nextrule struct {
-	Group affix
+	NonRouteDir affix
+	SlotDir     affix
+	GroupDir    affix
 
 	Params affix
 	Slug   affix
 	OSlug  affix
 
-	SlotAffix      affix
 	DotAffix       affix
 	DotDotAffix    affix
 	DoubleDotAffix affix
 	TripleDotAffix affix
 
-	skipedFolders map[string]struct{}
+	skipFolders map[string]struct{}
 
 	page walkrule
 	app  walkrule
@@ -41,19 +42,20 @@ var (
 	}
 
 	nextRule = nextrule{
-		Group: affix{pre: "(", suf: ")"},
+		NonRouteDir: affix{pre: "_"},
+		SlotDir:     affix{pre: "@"},
+		GroupDir:    affix{pre: "(", suf: ")"},
 
 		Params: affix{pre: "[", suf: "]"},
-		Slug:   affix{pre: "[..", suf: "]"},
+		Slug:   affix{pre: "[...", suf: "]"},
 		OSlug:  affix{pre: "[[...", suf: "]]"},
 
-		SlotAffix:      affix{pre: "@"},
 		DotAffix:       affix{pre: "(.)"},
 		DotDotAffix:    affix{pre: "(..)"},
 		DoubleDotAffix: affix{pre: "(..)(..)"},
 		TripleDotAffix: affix{pre: "(...)"},
 
-		skipedFolders: map[string]struct{}{
+		skipFolders: map[string]struct{}{
 			"api": {},
 		},
 
@@ -64,8 +66,28 @@ var (
 			},
 
 			excludeFiles: map[string]struct{}{
-				"api":   {},
-				"route": {},
+				"instrumentation": {},
+				"proxy":           {},
+				"api":             {},
+
+				"layout":       {},
+				"loading":      {},
+				"not-found":    {},
+				"error":        {},
+				"global-error": {},
+				"route":        {},
+				"template":     {},
+				"default":      {},
+
+				"favicon":    {},
+				"icon":       {},
+				"apple-icon": {},
+
+				"opengraph-image": {},
+				"twitter-image":   {},
+
+				"sitemap": {},
+				"robots":  {},
 			},
 		},
 
@@ -76,10 +98,13 @@ var (
 			},
 
 			excludeFiles: map[string]struct{}{
+				"instrumentation": {},
+				"proxy":           {},
+				"api":             {},
+
 				"_app":      {},
 				"_document": {},
 				"_error":    {},
-				"api":       {},
 				"404":       {},
 				"500":       {},
 			},
@@ -88,6 +113,10 @@ var (
 )
 
 func (*nextapp) shouldSkip(p string, d fs.DirEntry) error {
+	if nextRule.isNonRouteDir(d) {
+		return filepath.SkipDir
+	}
+
 	if nextRule.isSlotDir(d) {
 		return filepath.SkipDir
 	}
@@ -107,9 +136,17 @@ func (*nextpage) normalizeSegment(seg string) (string, error) {
 	return nextRule.normalizeSegment(seg)
 }
 
+func (n *nextrule) isNonRouteDir(d fs.DirEntry) bool {
+	if d.IsDir() {
+		return strings.HasPrefix(d.Name(), nextRule.NonRouteDir.pre)
+	}
+
+	return false
+}
+
 func (n *nextrule) isSlotDir(d fs.DirEntry) bool {
 	if d.IsDir() {
-		return strings.HasPrefix(d.Name(), nextRule.SlotAffix.pre)
+		return strings.HasPrefix(d.Name(), nextRule.SlotDir.pre)
 	}
 
 	return false
@@ -119,7 +156,7 @@ func (n *nextrule) shouldSkip(d fs.DirEntry) error {
 	if d.IsDir() {
 		dir := d.Name()
 
-		if _, ok := n.skipedFolders[dir]; ok {
+		if _, ok := n.skipFolders[dir]; ok {
 			return filepath.SkipDir
 		}
 
@@ -179,7 +216,7 @@ func (n *nextrule) normalizeSegment(seg string) (string, error) {
 
 func (n *nextrule) segmentKind(seg string) string {
 	switch {
-	case strings.HasPrefix(seg, n.Group.pre) && strings.HasSuffix(seg, n.Group.suf):
+	case strings.HasPrefix(seg, n.GroupDir.pre) && strings.HasSuffix(seg, n.GroupDir.suf):
 		return "Group"
 
 	case strings.HasPrefix(seg, n.OSlug.pre):
