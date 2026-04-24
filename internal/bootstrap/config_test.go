@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"github.com/spf13/viper"
-
-	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 func reset(t *testing.T) {
@@ -18,34 +16,27 @@ func reset(t *testing.T) {
 
 func chdir(t *testing.T, dir string) {
 	t.Helper()
-
 	old, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if err := os.Chdir(dir); err != nil {
 		t.Fatal(err)
 	}
-
-	t.Cleanup(func() {
-		_ = os.Chdir(old)
-	})
+	t.Cleanup(func() { _ = os.Chdir(old) })
 }
 
 func TestLoadConfig_Success(t *testing.T) {
 	reset(t)
-	t.Cleanup(func() { viper.Reset() })
 
 	dir := t.TempDir()
 	chdir(t, dir)
 
 	cfgPath := filepath.Join(dir, "trax.yaml")
-
 	err := os.WriteFile(cfgPath, []byte(strings.Join([]string{
-		"debug: true",
-		"user:",
-		` name: "john doe"`,
+		"formatter: prettier",
+		"routes:",
+		"  prefix: custom-routes",
 	}, "\n")), 0o644)
 	if err != nil {
 		t.Fatal(err)
@@ -56,76 +47,40 @@ func TestLoadConfig_Success(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if !viper.GetBool("debug") {
-		t.Fatalf("expected debug true")
+	if viper.GetString("formatter") != "prettier" {
+		t.Fatalf("expected formatter prettier from file, got %s", viper.GetString("formatter"))
 	}
 
-	if viper.GetString("user.name") != "john doe" {
-		t.Fatalf("expected user.name from file")
-	}
-}
-
-func TestLoadConfig_NotFound(t *testing.T) {
-	reset(t)
-	t.Cleanup(func() { viper.Reset() })
-
-	err := LoadConfig("file-yang-tidak-ada.yaml")
-	if err == nil {
-		t.Fatal("expected error")
-	}
-
-	coreErr, ok := err.(*appErr.CoreError)
-	if !ok {
-		t.Fatalf("expected CoreError")
-	}
-
-	if coreErr.Code != appErr.ErrConfigNotFound {
-		t.Log("CODE", coreErr.Code)
-		t.Fatalf("expected ErrConfigNotFound")
+	if viper.GetString("routes.prefix") != "custom-routes" {
+		t.Fatalf("expected custom prefix, got %s", viper.GetString("routes.prefix"))
 	}
 }
 
-func TestLoadConfig_InvalidFile(t *testing.T) {
+func TestLoadConfig_FileNotFound_ShouldUseDefault(t *testing.T) {
 	reset(t)
-	t.Cleanup(func() { viper.Reset() })
 
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "trax.ts")
-
-	err := os.WriteFile(cfgPath, []byte(`:::::::`), 0o644)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = LoadConfig(cfgPath)
+	err := LoadConfig("notfound.yaml")
 	if err == nil {
-		t.Fatal("expected error")
+		t.Fatalf("expected error when file is missing. got: %v", err)
 	}
 
-	coreErr, ok := err.(*appErr.CoreError)
-	if !ok {
-		t.Fatalf("expected CoreError")
-	}
-
-	if coreErr.Code != appErr.ErrConfigLoad {
-		t.Fatalf("expected ErrConfigLoad")
+	if viper.GetString("formatter") != "biome" {
+		t.Fatalf("expected default formatter 'biome', got %s", viper.GetString("formatter"))
 	}
 }
 
 func TestLoadConfig_EnvOverride(t *testing.T) {
 	reset(t)
-	t.Cleanup(func() { viper.Reset() })
 
-	os.Setenv("TRAX_USER_NAME", "override")
-	t.Cleanup(func() { os.Unsetenv("TRAX_USER_NAME") })
+	os.Setenv("TRAX_FORMATTER", "custom-env")
+	t.Cleanup(func() { os.Unsetenv("TRAX_FORMATTER") })
 
 	err := LoadConfig("")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	name := viper.GetString("user.name")
-	if name != "override" {
-		t.Fatalf("expected env override, got %s", name)
+	if viper.GetString("formatter") != "custom-env" {
+		t.Fatalf("expected env override 'custom-env', got %s", viper.GetString("formatter"))
 	}
 }

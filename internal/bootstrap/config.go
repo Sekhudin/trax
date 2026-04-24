@@ -1,7 +1,6 @@
 package bootstrap
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -47,34 +46,21 @@ func LoadConfig(cfgFile string) error {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
-	if cfgFile == "" {
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	} else {
 		viper.SetConfigName("trax")
 		viper.AddConfigPath(".")
-
-		return nil
 	}
 
-	viper.SetConfigFile(cfgFile)
 	if err := viper.ReadInConfig(); err != nil {
-		isFileNotFound := strings.Contains(err.Error(), "no such file")
-
-		if isFileNotFound {
-			return appErr.NewConfigNotFoundError(
-				"config",
-				err.Error(),
-			)
-		}
-
-		if errors.Is(err, viper.ConfigFileNotFoundError{}) {
-			return appErr.NewConfigNotFoundError(
-				"config",
-				"config file not found",
-			)
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return nil
 		}
 
 		return appErr.NewConfigLoadError(
 			"config",
-			"failed to read config file",
+			"failed to read config",
 			err,
 		)
 	}
