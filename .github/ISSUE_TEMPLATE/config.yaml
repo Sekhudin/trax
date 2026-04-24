@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Community Discussions
+    url: https://github.com/Sekhudin/trax/discussions
+    about: Got a question or an idea? Let's talk about it in the discussion forum!
+  - name: Feature Requests
+    url: https://github.com/Sekhudin/trax/discussions/categories/ideas
+    about: Share your suggestions for new features or improvements here.
+  - name: Documentation
+    url: https://github.com/Sekhudin/trax#readme
+    about: Please check the README for setup and usage instructions.
