@@ -1,0 +1,60 @@
+name: 🐛 Bug Report
+description: Report a bug to help improve Trax
+title: "[BUG]: <short description>"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+        Trax is currently in **Alpha**, and your feedback is crucial.
+  - type: input
+    id: version
+    attributes:
+      label: Trax Version
+      description: What version of Trax are you using? (Check with `trax --version`)
+      placeholder: e.g., v0.1.0-alpha.4
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Linux (Ubuntu/NixOS/etc)
+        - macOS
+        - Windows (WSL)
+        - Others
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration Snippet
+      description: Please provide the relevant parts of your `trax.toml`.
+      render: toml
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How did you encounter the bug?
+      placeholder: |
+        1. Run `trax generate`
+        2. Add a new route to toml...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal Output / Error Logs
+      description: Copy-paste the error message from your terminal.
+      render: bash
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked that this is not a user configuration error.
+          required: true

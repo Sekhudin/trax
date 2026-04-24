@@ -1,5 +1,10 @@
 # Trax
 
+![Status](https://img.shields.io/badge/status-alpha-orange)
+![Built With](https://img.shields.io/badge/built%20with-Go-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Last Commit](https://img.shields.io/github/last-commit/Sekhudin/trax)
+
 **Automate your TypeScript/JavaScript project workflows with Go.**
 
 Trax is a high-performance CLI tool designed to eliminate manual boilerplate by automating route discovery and generating type-safe helpers for your web projects.
