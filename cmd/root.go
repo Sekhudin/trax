@@ -24,7 +24,8 @@ type trax struct {
 }
 
 var (
-	tx = trax{
+	Version = ""
+	tx      = trax{
 		doc: docs.Docs{
 			Use:     "trax",
 			Version: version(),
@@ -43,11 +44,16 @@ var (
 )
 
 func version() string {
+	if Version != "" {
+		return Version
+	}
+
 	if info, ok := debug.ReadBuildInfo(); ok {
-		if info.Main.Version != "" {
+		if info.Main.Version != "" && info.Main.Version != "(devel)" {
 			return info.Main.Version
 		}
 	}
+
 	return "dev"
 }
 

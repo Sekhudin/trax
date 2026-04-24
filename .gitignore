@@ -21,6 +21,7 @@
 
 
 # extra
+/bin
 /tx*
 /trax*
 /coverage*
