@@ -114,8 +114,6 @@ func newConfigRule() *configrule {
 			"$wildcard": {},
 		},
 		rootSymb: map[string]struct{}{
-			"$":    {},
-			"r":    {},
 			"p":    {},
 			"root": {},
 			"path": {},
@@ -143,12 +141,12 @@ func (r *configrule) normalizeSymbols() *symbol {
 		sym.Param = "$param"
 	}
 
-	if _, ok := r.paramSym[sym.Wildcard]; !ok {
+	if _, ok := r.wildcardSym[sym.Wildcard]; !ok {
 		sym.Wildcard = "$wildcard"
 	}
 
-	if _, ok := r.paramSym[sym.Root]; !ok {
-		sym.Root = "$root"
+	if _, ok := r.rootSymb[sym.Root]; !ok {
+		sym.Root = "root"
 	}
 
 	return &sym
