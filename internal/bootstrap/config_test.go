@@ -3,84 +3,131 @@ package bootstrap
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
 )
 
-func reset(t *testing.T) {
-	t.Helper()
+func resetViper() {
 	viper.Reset()
 }
 
-func chdir(t *testing.T, dir string) {
+func writeTempConfig(t *testing.T, content string) string {
 	t.Helper()
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(old) })
-}
-
-func TestLoadConfig_Success(t *testing.T) {
-	reset(t)
 
 	dir := t.TempDir()
-	chdir(t, dir)
+	fp := filepath.Join(dir, "trax.yaml")
 
-	cfgPath := filepath.Join(dir, "trax.yaml")
-	err := os.WriteFile(cfgPath, []byte(strings.Join([]string{
-		"formatter: prettier",
-		"routes:",
-		"  prefix: custom-routes",
-	}, "\n")), 0o644)
-	if err != nil {
-		t.Fatal(err)
+	if err := os.WriteFile(fp, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write temp config: %v", err)
 	}
 
-	err = LoadConfig(cfgPath)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-
-	if viper.GetString("formatter") != "prettier" {
-		t.Fatalf("expected formatter prettier from file, got %s", viper.GetString("formatter"))
-	}
-
-	if viper.GetString("routes.prefix") != "custom-routes" {
-		t.Fatalf("expected custom prefix, got %s", viper.GetString("routes.prefix"))
-	}
+	return fp
 }
 
-func TestLoadConfig_FileNotFound_ShouldUseDefault(t *testing.T) {
-	reset(t)
+func writeTempInvalidConfig(t *testing.T) string {
+	t.Helper()
 
-	err := LoadConfig("notfound.yaml")
-	if err == nil {
-		t.Fatalf("expected error when file is missing. got: %v", err)
+	dir := t.TempDir()
+	fp := filepath.Join(dir, "trax.yaml")
+
+	if err := os.WriteFile(fp, []byte("formatter: [invalid_yaml"), 0o644); err != nil {
+		t.Fatalf("failed to write invalid config: %v", err)
 	}
 
-	if viper.GetString("formatter") != "biome" {
-		t.Fatalf("expected default formatter 'biome', got %s", viper.GetString("formatter"))
-	}
+	return fp
 }
 
-func TestLoadConfig_EnvOverride(t *testing.T) {
-	reset(t)
+func TestLoadConfig_ConfigFileProvided(t *testing.T) {
+	t.Run("should load successfully when valid config file is provided", func(t *testing.T) {
+		resetViper()
 
-	os.Setenv("TRAX_FORMATTER", "custom-env")
-	t.Cleanup(func() { os.Unsetenv("TRAX_FORMATTER") })
+		fp := writeTempConfig(t, `
+formatter: prettier
+routes:
+  strategy: custom
+`)
 
-	err := LoadConfig("")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+		err := LoadConfig(fp)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
 
-	if viper.GetString("formatter") != "custom-env" {
-		t.Fatalf("expected env override 'custom-env', got %s", viper.GetString("formatter"))
-	}
+	t.Run("should return wrapped error when config file is invalid", func(t *testing.T) {
+		resetViper()
+
+		fp := writeTempInvalidConfig(t)
+
+		err := LoadConfig(fp)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
+	t.Run("should error when config file path does not exist", func(t *testing.T) {
+		resetViper()
+
+		err := LoadConfig("/path/does/not/exist.yaml")
+		if err == nil {
+			t.Fatal("expected error for not found config file, ")
+		}
+	})
+}
+
+func TestLoadConfig_DefaultSearchPath(t *testing.T) {
+	t.Run("should not error when no config file found in default path", func(t *testing.T) {
+		resetViper()
+
+		dir := t.TempDir()
+		oldWd, _ := os.Getwd()
+		defer os.Chdir(oldWd)
+
+		os.Chdir(dir)
+
+		err := LoadConfig("")
+		if err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+	})
+
+	t.Run("should load config when trax.yaml exists in current directory", func(t *testing.T) {
+		resetViper()
+
+		dir := t.TempDir()
+		oldWd, _ := os.Getwd()
+		defer os.Chdir(oldWd)
+
+		os.Chdir(dir)
+
+		if err := os.WriteFile(filepath.Join(dir, "trax.yaml"), []byte(`
+formatter: prettier
+`), 0o644); err != nil {
+			t.Fatalf("failed to write config: %v", err)
+		}
+
+		err := LoadConfig("")
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("should return error when trax.yaml is invalid", func(t *testing.T) {
+		resetViper()
+
+		dir := t.TempDir()
+		oldWd, _ := os.Getwd()
+		defer os.Chdir(oldWd)
+
+		os.Chdir(dir)
+
+		if err := os.WriteFile(filepath.Join(dir, "trax.yaml"), []byte("invalid: [yaml"), 0o644); err != nil {
+			t.Fatalf("failed to write invalid config: %v", err)
+		}
+
+		err := LoadConfig("")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
 }

@@ -1,78 +1,48 @@
 package clierror
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-
-	"github.com/spf13/viper"
 
 	appErr "github.com/sekhudin/trax/internal/errors"
 	"github.com/sekhudin/trax/internal/output"
 )
 
-type context struct {
-	Writer io.Writer
+type Handler struct {
+	out *output.Context
 }
 
-func New(w io.Writer) *context {
-	return &context{Writer: w}
+func New(out *output.Context) *Handler {
+	return &Handler{out: out}
 }
 
-func (c *context) PrintText(err error) {
-	switch e := err.(type) {
-	case *appErr.CoreError:
-		fmt.Fprintf(c.Writer, "%s %s:", output.IconError, output.Bold(e.Code))
-
-		if e.Scope != "" {
-			fmt.Fprintf(c.Writer, " (%s)", output.Red(e.Scope))
-		}
-
-		fmt.Fprintf(c.Writer, " %s\n", e.Message)
-
-		if e.Err != nil {
-			fmt.Fprintf(c.Writer, "    %s %v\n", output.IconDetail, e.Err)
-		}
-
-	default:
-		fmt.Fprintf(c.Writer, "%s %v\n", output.IconError, err)
-	}
-}
-
-func (c *context) PrintJSON(err error) {
-	payload := map[string]any{
-		"error": err.Error(),
-	}
-
-	if e, ok := err.(*appErr.CoreError); ok {
-		payload["code"] = e.Code
-		payload["scope"] = e.Scope
-		payload["message"] = e.Message
-
-		if e.Err != nil {
-			payload["cause"] = e.Err.Error()
-		}
-	}
-
-	b, _ := json.MarshalIndent(payload, "", "  ")
-	fmt.Fprintln(c.Writer, string(b))
-}
-
-func (c *context) Print(err error) {
+func (h *Handler) Print(err error) {
 	if err == nil {
 		return
 	}
 
-	if viper.GetBool("debug") {
-		c.PrintJSON(err)
+	var ce *appErr.CoreError
+	if errors.As(err, &ce) {
+		h.printCoreError(ce)
 		return
 	}
 
-	c.PrintText(err)
+	h.out.Error("runtime", err.Error())
 }
 
-func (c *context) ExitCode(err error) int {
+func (h *Handler) printCoreError(e *appErr.CoreError) {
+	scope := e.Scope
+	if scope == "" {
+		scope = "core"
+	}
+
+	h.out.Error(scope, e.Message)
+
+	if e.Err != nil {
+		h.out.Info("cause", e.Err.Error())
+	}
+}
+
+func (h *Handler) ExitCode(err error) int {
 	var ce *appErr.CoreError
 	if errors.As(err, &ce) {
 		switch ce.Code {

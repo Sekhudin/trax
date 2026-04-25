@@ -7,21 +7,53 @@ import (
 )
 
 func TestLine(t *testing.T) {
-	got := Line("a", "b", "c")
-	want := "a\nb\nc"
+	t.Run("multiple lines joined with newline", func(t *testing.T) {
+		out := Line("a", "b", "c")
+		expected := "a\nb\nc"
 
-	if got != want {
-		t.Fatalf("expected %q, got %q", want, got)
-	}
+		if out != expected {
+			t.Fatalf("expected %q, got %q", expected, out)
+		}
+	})
+
+	t.Run("single line returns as is", func(t *testing.T) {
+		out := Line("only")
+		if out != "only" {
+			t.Fatalf("unexpected output: %q", out)
+		}
+	})
+
+	t.Run("no lines returns empty string", func(t *testing.T) {
+		out := Line()
+		if out != "" {
+			t.Fatalf("expected empty string, got %q", out)
+		}
+	})
 }
 
 func TestParagraph(t *testing.T) {
-	got := Paragraph("a", "b", "c")
-	want := "a\n\nb\n\nc"
+	t.Run("multiple lines joined with double newline", func(t *testing.T) {
+		out := Paragraph("a", "b", "c")
+		expected := "a\n\nb\n\nc"
 
-	if got != want {
-		t.Fatalf("expected %q, got %q", want, got)
-	}
+		if out != expected {
+			t.Fatalf("expected %q, got %q", expected, out)
+		}
+	})
+
+	t.Run("single line returns as is", func(t *testing.T) {
+		out := Paragraph("only")
+		if out != "only" {
+			t.Fatalf("unexpected output: %q", out)
+		}
+	})
+
+	t.Run("no lines returns empty string", func(t *testing.T) {
+		out := Paragraph()
+		if out != "" {
+			t.Fatalf("expected empty string, got %q", out)
+		}
+	})
 }
 
 func TestApplyGroup(t *testing.T) {
@@ -30,104 +62,96 @@ func TestApplyGroup(t *testing.T) {
 		Title: "Generate Commands",
 	}
 
-	out := ApplyGroup(g)
+	cg := ApplyGroup(g)
 
-	if out.ID != "gen" {
-		t.Fatal("expected group id")
+	if cg.ID != "gen" {
+		t.Fatalf("expected ID gen, got %s", cg.ID)
 	}
-
-	if out.Title != "Generate Commands" {
-		t.Fatal("expected group title")
-	}
-}
-
-func TestApplyDocs_AllFields(t *testing.T) {
-	cmd := &cobra.Command{}
-
-	d := Docs{
-		GroupID: "gen",
-		Use:     "trax generate",
-		Aliases: []string{"g"},
-		Version: "1.0.0",
-		Short:   "short desc",
-		Long:    "long desc",
-		Example: "example",
-	}
-
-	ApplyDocs(&d, cmd)
-
-	if cmd.GroupID != "gen" {
-		t.Fatal("group id not set")
-	}
-
-	if cmd.Use != "trax generate" {
-		t.Fatal("use not set")
-	}
-
-	if len(cmd.Aliases) != 1 || cmd.Aliases[0] != "g" {
-		t.Fatal("aliases not set")
-	}
-
-	if cmd.Version != "1.0.0" {
-		t.Fatal("version not set")
-	}
-
-	if cmd.Short != "short desc" {
-		t.Fatal("short not set")
-	}
-
-	if cmd.Long != "long desc" {
-		t.Fatal("long not set")
-	}
-
-	if cmd.Example != "example" {
-		t.Fatal("example not set")
+	if cg.Title != "Generate Commands" {
+		t.Fatalf("expected Title Generate Commands, got %s", cg.Title)
 	}
 }
 
-func TestApplyDocs_IgnoresEmptyFields(t *testing.T) {
-	cmd := &cobra.Command{
-		Use:     "original",
-		Short:   "keep me",
-		Version: "0.1.0",
-	}
+func TestApplyDocs(t *testing.T) {
+	t.Run("should apply all fields when provided", func(t *testing.T) {
+		cmd := &cobra.Command{}
 
-	d := Docs{
-		Use: "", // should NOT override
-	}
+		d := &Docs{
+			GroupID: "gen",
+			Use:     "generate",
+			Aliases: []string{"g"},
+			Short:   "short desc",
+			Long:    "long desc",
+			Example: "example usage",
+			Version: "1.0.0",
+		}
 
-	ApplyDocs(&d, cmd)
+		result := ApplyDocs(d, cmd)
 
-	if cmd.Use != "original" {
-		t.Fatal("empty use should not override")
-	}
+		if result != cmd {
+			t.Fatalf("expected same command pointer returned")
+		}
 
-	if cmd.Short != "keep me" {
-		t.Fatal("empty docs should not override existing")
-	}
+		if cmd.GroupID != "gen" ||
+			cmd.Use != "generate" ||
+			cmd.Short != "short desc" ||
+			cmd.Long != "long desc" ||
+			cmd.Example != "example usage" ||
+			cmd.Version != "1.0.0" {
+			t.Fatalf("fields not properly applied")
+		}
 
-	if cmd.Version != "0.1.0" {
-		t.Fatal("version should remain unchanged")
-	}
-}
+		if len(cmd.Aliases) != 1 || cmd.Aliases[0] != "g" {
+			t.Fatalf("aliases not applied")
+		}
+	})
 
-func TestApplyDocs_PartialOverride(t *testing.T) {
-	cmd := &cobra.Command{
-		Short: "old short",
-		Long:  "old long",
-	}
+	t.Run("should not overwrite existing fields when docs fields are empty", func(t *testing.T) {
+		cmd := &cobra.Command{
+			GroupID: "existing",
+			Use:     "existing-use",
+			Aliases: []string{"x"},
+			Short:   "existing short",
+			Long:    "existing long",
+			Example: "existing example",
+			Version: "0.9.0",
+		}
 
-	d := Docs{
-		Short: "new short",
-	}
+		d := &Docs{}
 
-	ApplyDocs(&d, cmd)
+		ApplyDocs(d, cmd)
 
-	if cmd.Short != "new short" {
-		t.Fatal("short should be overridden")
-	}
+		if cmd.GroupID != "existing" ||
+			cmd.Use != "existing-use" ||
+			cmd.Short != "existing short" ||
+			cmd.Long != "existing long" ||
+			cmd.Example != "existing example" ||
+			cmd.Version != "0.9.0" {
+			t.Fatalf("existing fields should not be overwritten")
+		}
 
-	if cmd.Long != "old long" {
-		t.Fatal("long should remain unchanged")
-	}
+		if len(cmd.Aliases) != 1 || cmd.Aliases[0] != "x" {
+			t.Fatalf("aliases should not be overwritten")
+		}
+	})
+
+	t.Run("should apply only non empty fields", func(t *testing.T) {
+		cmd := &cobra.Command{
+			Use: "old",
+		}
+
+		d := &Docs{
+			Use:   "new",
+			Short: "short",
+		}
+
+		ApplyDocs(d, cmd)
+
+		if cmd.Use != "new" {
+			t.Fatalf("Use should be updated")
+		}
+		if cmd.Short != "short" {
+			t.Fatalf("Short should be set")
+		}
+	})
 }

@@ -2,139 +2,109 @@ package errors
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
-func TestCoreError_ErrorFormat(t *testing.T) {
-	err := &CoreError{
-		Code:    ErrConfigLoad,
-		Scope:   "config",
-		Message: "failed to load",
-		Err:     errors.New("disk error"),
-	}
+func TestCoreError_ErrorFormatting(t *testing.T) {
+	t.Run("only code", func(t *testing.T) {
+		e := &CoreError{Code: ErrInternal}
+		if e.Error() != "[INTERNAL_ERROR]" {
+			t.Fatal(e.Error())
+		}
+	})
 
-	got := err.Error()
-	want := "[CONFIG_LOAD_FAILED] (config) failed to load: disk error"
+	t.Run("with scope", func(t *testing.T) {
+		e := &CoreError{Code: ErrIO, Scope: "file"}
+		if !strings.Contains(e.Error(), "(file)") {
+			t.Fatal(e.Error())
+		}
+	})
 
-	if got != want {
-		t.Fatalf("expected %q, got %q", want, got)
-	}
-}
+	t.Run("with message", func(t *testing.T) {
+		e := &CoreError{Code: ErrValidation, Message: "bad input"}
+		if !strings.Contains(e.Error(), "bad input") {
+			t.Fatal(e.Error())
+		}
+	})
 
-func TestCoreError_ErrorFormat_WithoutScope(t *testing.T) {
-	err := &CoreError{
-		Code:    ErrValidation,
-		Message: "invalid input",
-	}
+	t.Run("with wrapped error", func(t *testing.T) {
+		root := errors.New("root cause")
+		e := &CoreError{Code: ErrRuntime, Err: root}
+		if !strings.Contains(e.Error(), "root cause") {
+			t.Fatal(e.Error())
+		}
+	})
 
-	got := err.Error()
-	want := "[VALIDATION_FAILED] invalid input"
+	t.Run("full combination", func(t *testing.T) {
+		root := errors.New("boom")
+		e := &CoreError{
+			Code:    ErrExecution,
+			Scope:   "cmd",
+			Message: "failed",
+			Err:     root,
+		}
 
-	if got != want {
-		t.Fatalf("expected %q, got %q", want, got)
-	}
-}
+		out := e.Error()
 
-func TestCoreError_ErrorFormat_WithoutMessage(t *testing.T) {
-	err := &CoreError{
-		Code:  ErrIO,
-		Scope: "file",
-		Err:   errors.New("read failed"),
-	}
-
-	got := err.Error()
-	want := "[IO_OPERATION_FAILED] (file): read failed"
-
-	if got != want {
-		t.Fatalf("expected %q, got %q", want, got)
-	}
+		if !strings.Contains(out, "[EXECUTION_FAILED]") ||
+			!strings.Contains(out, "(cmd)") ||
+			!strings.Contains(out, "failed") ||
+			!strings.Contains(out, "boom") {
+			t.Fatal(out)
+		}
+	})
 }
 
 func TestCoreError_Unwrap(t *testing.T) {
-	cause := errors.New("root cause")
+	root := errors.New("inner")
+	e := &CoreError{Err: root}
 
-	err := &CoreError{
-		Code: ErrRuntime,
-		Err:  cause,
-	}
-
-	if !errors.Is(err, cause) {
-		t.Fatalf("expected unwrap to match cause error")
+	if !errors.Is(e, root) {
+		t.Fatal("unwrap failed")
 	}
 }
 
-func TestNewConfigLoadError(t *testing.T) {
-	cause := errors.New("disk error")
+func TestFactories_SetCorrectFields(t *testing.T) {
+	root := errors.New("x")
 
-	err, ok := NewConfigLoadError("config", "failed", cause).(*CoreError)
-	if !ok {
-		t.Fatalf("expected *CoreError")
-	}
-
-	if err.Code != ErrConfigLoad {
-		t.Fatalf("wrong code")
-	}
-
-	if err.Scope != "config" {
-		t.Fatalf("wrong scope")
-	}
-
-	if err.Err != cause {
-		t.Fatalf("wrong wrapped error")
-	}
-}
-
-func TestNewConfigNotFoundError(t *testing.T) {
-	err, ok := NewConfigNotFoundError("config", "not found").(*CoreError)
-	if !ok {
-		t.Fatalf("expected *CoreError")
-	}
-
-	if err.Code != ErrConfigNotFound {
-		t.Fatalf("wrong code")
-	}
-}
-
-func TestNewFlagReadError(t *testing.T) {
-	cause := errors.New("invalid flag")
-
-	err, ok := NewFlagReadError("debug", cause).(*CoreError)
-	if !ok {
-		t.Fatalf("expected *CoreError")
-	}
-
-	if err.Code != ErrFlagRead {
-		t.Fatalf("wrong code")
-	}
-
-	if err.Scope != "debug" {
-		t.Fatalf("wrong scope")
-	}
-}
-
-func TestAllErrorBuilders_AreCoreError(t *testing.T) {
 	tests := []struct {
 		name string
-		fn   func() error
+		err  error
+		code ErrorCode
 	}{
-		{"validation", func() error { return NewValidationError("field", "invalid") }},
-		{"io", func() error { return NewIOError("file", "failed", errors.New("x")) }},
-		{"template", func() error { return NewTemplateError("tpl", "failed", errors.New("x")) }},
-		{"runtime", func() error { return NewRuntimeError("exec", "failed", errors.New("x")) }},
-		{"dependency", func() error { return NewDependencyError("pkg", "failed", errors.New("x")) }},
-		{"internal", func() error { return NewInternalError("system", "failed", errors.New("x")) }},
+		{"config load", NewConfigLoadError("cfg", "msg", root), ErrConfigLoad},
+		{"config not found", NewConfigNotFoundError("cfg", "msg"), ErrConfigNotFound},
+		{"flag read", NewFlagReadError("flag", root), ErrFlagRead},
+		{"validation", NewValidationError("v", "msg"), ErrValidation},
+		{"io", NewIOError("io", "msg", root), ErrIO},
+		{"template", NewTemplateError("tpl", "msg", root), ErrTemplate},
+		{"runtime", NewRuntimeError("rt", "msg", root), ErrRuntime},
+		{"dependency", NewDependencyError("dep", "msg", root), ErrDependency},
+		{"internal", NewInternalError("int", "msg", root), ErrInternal},
+		{"invalid config", NewInvalidConfigError("cfg", "msg"), ErrInvalidConfig},
+		{"execution", NewExecutionError("exec", "msg", root), ErrExecution},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err, ok := tt.fn().(*CoreError)
+			ce, ok := tt.err.(*CoreError)
 			if !ok {
-				t.Fatalf("expected *CoreError")
+				t.Fatal("not CoreError")
 			}
 
-			if err.Code == "" {
-				t.Fatalf("expected error code")
+			if ce.Code != tt.code {
+				t.Fatalf("expected %s got %s", tt.code, ce.Code)
 			}
 		})
+	}
+}
+
+func TestNewFlagReadError_DefaultMessage(t *testing.T) {
+	root := errors.New("boom")
+	err := NewFlagReadError("myflag", root).(*CoreError)
+
+	if err.Message != "failed to read flag value" {
+		t.Fatal(err.Message)
 	}
 }

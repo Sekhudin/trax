@@ -6,162 +6,108 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/viper"
-
 	appErr "github.com/sekhudin/trax/internal/errors"
+	"github.com/sekhudin/trax/internal/output"
 )
 
-func resetViper(t *testing.T) {
-	t.Helper()
-	viper.Reset()
+func newHandler(buf *bytes.Buffer) *Handler {
+	ctx := output.New(buf, output.Options{NoColor: true})
+	return New(ctx)
 }
 
-func TestNew(t *testing.T) {
-	resetViper(t)
+func TestHandler_Print_NilError(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	h := newHandler(buf)
 
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	if ctx.Writer != buf {
-		t.Fatal("writer not set")
-	}
-}
-
-func TestPrintText_CoreError_Simple(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	err := &appErr.CoreError{
-		Code:    appErr.ErrConfigLoad,
-		Message: "failed",
-	}
-
-	ctx.PrintText(err)
-
-	out := buf.String()
-	if !strings.Contains(out, "CONFIG_LOAD_FAILED") {
-		t.Fatal(out)
-	}
-}
-
-func TestPrintText_CoreError_WithScopeAndCause(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	err := &appErr.CoreError{
-		Code:    appErr.ErrConfigLoad,
-		Scope:   "config",
-		Message: "failed",
-		Err:     errors.New("root cause"),
-	}
-
-	ctx.PrintText(err)
-
-	out := buf.String()
-	if !strings.Contains(out, "config") ||
-		!strings.Contains(out, "root cause") {
-		t.Fatal(out)
-	}
-}
-
-func TestPrintText_DefaultError(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	ctx.PrintText(errors.New("boom"))
-
-	if !strings.Contains(buf.String(), "boom") {
-		t.Fatal(buf.String())
-	}
-}
-
-func TestPrintJSON_CoreError(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	err := &appErr.CoreError{
-		Code:    appErr.ErrConfigLoad,
-		Scope:   "config",
-		Message: "failed",
-		Err:     errors.New("root cause"),
-	}
-
-	ctx.PrintJSON(err)
-
-	out := buf.String()
-
-	if !strings.Contains(out, `"code"`) ||
-		!strings.Contains(out, `"scope"`) ||
-		!strings.Contains(out, `"cause"`) {
-		t.Fatal(out)
-	}
-}
-
-func TestPrintJSON_DefaultError(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	ctx.PrintJSON(errors.New("boom"))
-
-	if !strings.Contains(buf.String(), `"error": "boom"`) {
-		t.Fatal(buf.String())
-	}
-}
-
-func TestPrint_TextMode(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	ctx.Print(errors.New("boom"))
-
-	if !strings.Contains(buf.String(), "boom") {
-		t.Fatal(buf.String())
-	}
-}
-
-func TestPrint_DebugMode(t *testing.T) {
-	resetViper(t)
-	viper.Set("debug", true)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	ctx.Print(errors.New("boom"))
-
-	if !strings.Contains(buf.String(), `"error": "boom"`) {
-		t.Fatal(buf.String())
-	}
-}
-
-func TestPrint_NilError(t *testing.T) {
-	resetViper(t)
-
-	buf := new(bytes.Buffer)
-	ctx := New(buf)
-
-	ctx.Print(nil)
+	h.Print(nil)
 
 	if buf.Len() != 0 {
-		t.Fatal("should not print anything")
+		t.Fatal("expected no output")
 	}
 }
 
-func TestExitCode(t *testing.T) {
-	resetViper(t)
+func TestHandler_Print_NonCoreError(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	h := newHandler(buf)
 
-	ctx := New(new(bytes.Buffer))
+	h.Print(errors.New("boom"))
+
+	out := buf.String()
+
+	if !strings.Contains(out, "(runtime)") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "boom") {
+		t.Fatal(out)
+	}
+}
+
+func TestHandler_Print_CoreError_WithScope(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	h := newHandler(buf)
+
+	err := &appErr.CoreError{
+		Code:    appErr.ErrRuntime,
+		Scope:   "exec",
+		Message: "failed",
+	}
+
+	h.Print(err)
+
+	out := buf.String()
+
+	if !strings.Contains(out, "(exec)") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "failed") {
+		t.Fatal(out)
+	}
+}
+
+func TestHandler_Print_CoreError_EmptyScopeDefaultsToCore(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	h := newHandler(buf)
+
+	err := &appErr.CoreError{
+		Code:    appErr.ErrRuntime,
+		Message: "oops",
+	}
+
+	h.Print(err)
+
+	out := buf.String()
+
+	if !strings.Contains(out, "(core)") {
+		t.Fatal(out)
+	}
+}
+
+func TestHandler_Print_CoreError_WithCause(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	h := newHandler(buf)
+
+	root := errors.New("root cause")
+	err := &appErr.CoreError{
+		Code:    appErr.ErrRuntime,
+		Scope:   "exec",
+		Message: "failed",
+		Err:     root,
+	}
+
+	h.Print(err)
+
+	out := buf.String()
+
+	if !strings.Contains(out, "root cause") {
+		t.Fatal(out)
+	}
+	if !strings.Contains(out, "(cause)") {
+		t.Fatal(out)
+	}
+}
+
+func TestHandler_ExitCode_Mapping(t *testing.T) {
+	h := newHandler(bytes.NewBuffer(nil))
 
 	tests := []struct {
 		err  error
@@ -170,14 +116,13 @@ func TestExitCode(t *testing.T) {
 		{&appErr.CoreError{Code: appErr.ErrValidation}, 2},
 		{&appErr.CoreError{Code: appErr.ErrConfigNotFound}, 3},
 		{&appErr.CoreError{Code: appErr.ErrConfigLoad}, 4},
-		{&appErr.CoreError{Code: "OTHER"}, 1},
+		{&appErr.CoreError{Code: appErr.ErrRuntime}, 1},
 		{errors.New("x"), 1},
 	}
 
 	for _, tt := range tests {
-		got := ctx.ExitCode(tt.err)
-		if got != tt.want {
-			t.Fatalf("want %d got %d", tt.want, got)
+		if h.ExitCode(tt.err) != tt.want {
+			t.Fatalf("expected %d got %d", tt.want, h.ExitCode(tt.err))
 		}
 	}
 }
