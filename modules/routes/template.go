@@ -13,11 +13,11 @@ import (
 type template struct {
 	routes   *[]route
 	selector treeselector
-	config   *Config
+	cfg      *Config
 }
 
-func newTemplate(r *[]route, s treeselector, cfg *Config) template {
-	return template{routes: r, selector: s, config: cfg}
+func newTemplate(r *[]route, s treeselector, cfg *Config) *template {
+	return &template{routes: r, selector: s, cfg: cfg}
 }
 
 func (t *template) build() (string, error) {
@@ -88,11 +88,11 @@ func (t *template) build() (string, error) {
 }
 
 func (t *template) isTypescrpt() bool {
-	return strings.HasSuffix(t.config.Output.Ext, ".ts")
+	return strings.HasSuffix(t.cfg.Output.Ext, ".ts")
 }
 
 func (t *template) isNoDeps() bool {
-	return t.config.NoDeps
+	return t.cfg.NoDeps
 }
 
 func (*template) warning() string {
@@ -450,7 +450,7 @@ func (t *template) serilizeRoutes(data map[string]any, indent string, currentPat
 
 		switch v := value.(type) {
 		case string:
-			if key == "root" {
+			if key == t.cfg.Symbols.Root {
 				val := fmt.Sprintf("createRoute(tree.%s)", newPath)
 				b.WriteString(val)
 			} else {

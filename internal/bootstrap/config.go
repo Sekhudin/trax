@@ -24,6 +24,11 @@ var cfg = config{
 		"no-deps":   false,
 		"output":    "src/trax/routes.ts",
 		"formatter": "biome",
+		"symbols": map[string]any{
+			"param":    "$param",
+			"wildcard": "$wildcard",
+			"root":     "root",
+		},
 	},
 	formatters: map[string]any{
 		"biome": map[string]any{

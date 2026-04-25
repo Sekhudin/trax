@@ -1,14 +1,8 @@
 package routes
 
-import "github.com/sekhudin/trax/internal/fs"
-
-type routereader func(cfg *Config) ([]rawroute, error)
-
-type builder struct{}
-
-type generator struct {
-	writer fs.FileWriter
-}
+import (
+	"github.com/sekhudin/trax/internal/fs"
+)
 
 type finalroute struct {
 	raw      []rawroute
@@ -17,13 +11,15 @@ type finalroute struct {
 	selector treeselector
 }
 
+type generator struct {
+	writer fs.FileWriter
+}
+
+type builder struct{}
+
 var (
-	r   = route{}
-	t   = tree{}
-	bd  = builder{}
-	gen = generator{
-		writer: fs.NewOSWriter(),
-	}
+	bd  = newBuilder()
+	gen = newGenerator(fs.NewOSWriter())
 )
 
 func Show(cfg *Config) (treeselector, error) {
@@ -52,43 +48,42 @@ func Generate(cfg *Config) error {
 	return gen.generate(content, cfg)
 }
 
+func newBuilder() *builder {
+	return &builder{}
+}
+
+func newGenerator(writer fs.FileWriter) *generator {
+	return &generator{writer}
+}
+
 func (g *generator) generate(content []byte, cfg *Config) error {
 	return g.writer.Write(cfg.Output.Full, content)
 }
 
 func (*builder) build(cfg *Config) (*finalroute, error) {
-	var reader routereader
+	rwb := newRawRouteBuilder(cfg)
+	rb := newRouteBuilder(cfg)
+	tb := newTreeBuilder(cfg)
 
-	if cfg.IsFileStrategy() {
-		reader = r.readFile
-	} else {
-		reader = r.readDisc
-	}
-
-	rw, err := reader(cfg)
+	rws, err := rwb.build()
 	if err != nil {
 		return nil, err
 	}
 
-	rs, err := r.build(rw)
+	rs, err := rb.build(rws)
 	if err != nil {
 		return nil, err
 	}
 
-	tr, err := t.build(rs)
-	if err != nil {
-		return nil, err
-	}
-
-	ts, err := t.newSelector(t.toMap(tr))
+	tr, trs, err := tb.build(rs)
 	if err != nil {
 		return nil, err
 	}
 
 	return &finalroute{
-		raw:      rw,
+		raw:      rws,
 		routes:   rs,
 		tree:     tr,
-		selector: ts,
+		selector: trs,
 	}, nil
 }
