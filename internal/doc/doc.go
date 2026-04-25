@@ -1,4 +1,4 @@
-package docs
+package doc
 
 import (
 	"strings"
@@ -36,7 +36,7 @@ func ApplyGroup(g Group) *cobra.Group {
 	}
 }
 
-func ApplyDocs(d *Docs, cmd *cobra.Command) *cobra.Command {
+func Apply(d *Docs, cmd *cobra.Command) *cobra.Command {
 	if d.GroupID != "" {
 		cmd.GroupID = d.GroupID
 	}

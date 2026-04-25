@@ -1,43 +1,46 @@
 package show
 
 import (
-	"github.com/sekhudin/trax/internal/docs"
-
+	"github.com/sekhudin/trax/internal/app"
+	"github.com/sekhudin/trax/internal/doc"
 	"github.com/spf13/cobra"
 )
 
-type showdocs struct {
-	root   docs.Docs
-	config docs.Docs
-	routes docs.Docs
+type documentation struct {
+	root   doc.Docs
+	config doc.Docs
+	routes doc.Docs
 }
 
-var (
-	doc = showdocs{
-		root: docs.Docs{
-			Use:     "show",
-			Aliases: []string{"s"},
-			Short:   "Inspect project information",
-		},
+var docs = documentation{
+	root: doc.Docs{
+		Use:     "show",
+		Aliases: []string{"s"},
+		Short:   "Inspect project information",
+	},
 
-		config: docs.Docs{
-			Use:   "config",
-			Short: "Show current Trax configuration",
-			Long: docs.Paragraph(
-				"Displays the resolved configuration used by Trax.",
-			),
-		},
+	config: doc.Docs{
+		Use:   "config",
+		Short: "Show current Trax configuration",
+		Long: doc.Paragraph(
+			"Displays the resolved configuration used by Trax.",
+		),
+	},
 
-		routes: docs.Docs{
-			Use:   "routes",
-			Short: "View registered routes",
-			Long:  "Displays all registered routes.",
-		},
-	}
+	routes: doc.Docs{
+		Use:   "routes",
+		Short: "View registered routes",
+		Long:  "Displays all registered routes.",
+	},
+}
 
-	Command = docs.ApplyDocs(&doc.root, &cobra.Command{})
-)
+func New(ctx *app.Context) *cobra.Command {
+	cmd := doc.Apply(&docs.root, &cobra.Command{})
 
-func init() {
-	Command.AddCommand(scCommand, srCommand)
+	configCmd := NewConfigCmd(&docs.config, ctx)
+	routesCmd := NewRoutesCmd(&docs.routes, ctx)
+
+	cmd.AddCommand(configCmd, routesCmd)
+
+	return cmd
 }

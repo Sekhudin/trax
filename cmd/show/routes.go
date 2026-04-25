@@ -3,73 +3,75 @@ package show
 import (
 	"fmt"
 
-	"github.com/sekhudin/trax/internal/docs"
-	"github.com/sekhudin/trax/internal/output"
+	"github.com/sekhudin/trax/internal/app"
+	"github.com/sekhudin/trax/internal/doc"
 	"github.com/sekhudin/trax/modules/routes"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 type showroutes struct {
-	flags *pflag.FlagSet
-	out   *output.Context
-	cfg   *routes.Config
+	ctx *app.Context
 }
 
-var (
-	sr        = showroutes{}
-	srCommand = docs.ApplyDocs(&doc.routes, &cobra.Command{
-		PreRunE: sr.preRunE,
-		RunE:    sr.runE,
+func NewRoutesCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
+	s := showroutes{ctx: ctx}
+	cmd := doc.Apply(docs, &cobra.Command{
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return s.preRunE(cmd)
+		},
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return s.runE(cmd)
+		},
 	})
-)
 
-func init() {
-	sr.flags = srCommand.Flags()
-	sr.out = output.New(srCommand.OutOrStdout())
+	flags := cmd.Flags()
 
-	sr.flags.StringP("strategy", "s", "", "route discovery strategy")
-	sr.flags.StringP("root", "r", "", "project root directory used for route discovery")
-	sr.flags.StringP("file", "f", "", "path to a route definition file")
+	flags.StringP("strategy", "s", "", "route discovery strategy")
+	flags.StringP("root", "r", "", "project root directory used for route discovery")
+	flags.StringP("file", "f", "", "path to a route definition file")
 
-	sr.flags.StringP("key", "k", "", "selector key")
-	sr.flags.Bool("json", false, "output as json")
+	flags.StringP("key", "k", "", "selector key")
+	flags.Bool("json", false, "output as json")
 
-	srCommand.MarkFlagFilename("file", "yaml")
-	srCommand.MarkFlagFilename("output", "ts", "js")
-	srCommand.MarkFlagDirname("root")
+	cmd.MarkFlagFilename("file", "yaml")
+	cmd.MarkFlagFilename("output", "ts", "js")
+	cmd.MarkFlagDirname("root")
+
+	return cmd
 }
 
-func (s *showroutes) preRunE(cmd *cobra.Command, args []string) error {
-	viper.BindPFlag("routes.strategy", s.flags.Lookup("strategy"))
-	viper.BindPFlag("routes.root", s.flags.Lookup("root"))
-	viper.BindPFlag("routes.file", s.flags.Lookup("file"))
+func (s *showroutes) preRunE(cmd *cobra.Command) error {
+	flags := cmd.Flags()
+	viper.BindPFlag("routes.strategy", flags.Lookup("strategy"))
+	viper.BindPFlag("routes.root", flags.Lookup("root"))
+	viper.BindPFlag("routes.file", flags.Lookup("file"))
+
+	return nil
+}
+
+func (s *showroutes) runE(cmd *cobra.Command) error {
+	flags := cmd.Flags()
+
+	key, err := flags.GetString("key")
+	if err != nil {
+		return err
+	}
+
+	asJSON, err := flags.GetBool("json")
+	if err != nil {
+		return err
+	}
 
 	cfg, err := routes.NewConfig()
 	if err != nil {
 		return err
 	}
 
-	s.cfg = cfg
-	s.out.Info("routes", fmt.Sprintf("using %q strategy \n", s.cfg.Strategy))
-
-	return nil
-}
-
-func (s *showroutes) runE(cmd *cobra.Command, args []string) error {
-	key, err := s.flags.GetString("key")
-	if err != nil {
-		return err
-	}
-
-	asJSON, err := s.flags.GetBool("json")
-	if err != nil {
-		return err
-	}
-
-	selector, err := routes.Show(s.cfg)
+	s.ctx.Out.Info("routes", fmt.Sprintf("using %q strategy \n", cfg.Strategy))
+	selector, err := routes.Show(cfg)
 	if err != nil {
 		return err
 	}
@@ -80,11 +82,11 @@ func (s *showroutes) runE(cmd *cobra.Command, args []string) error {
 	}
 
 	if asJSON {
-		s.out.AsJSON(val)
+		s.ctx.Out.AsJSON(val)
 		return nil
 	}
 
-	s.out.AsFlat("", val)
+	s.ctx.Out.AsFlat("", val)
 
 	return nil
 }

@@ -16,6 +16,10 @@ test: ## Run all unit tests
 	@echo "Running tests..."
 	go test -v ./...
 
+cov: ## Run all unit tests with coverage
+	@go test ./internal/... -coverprofile=coverage.out -covermode=atomic
+	go tool cover -func=coverage.out
+
 clean: ## Remove binary and build artifacts
 	@echo "Cleaning up..."
 	rm -rf bin/

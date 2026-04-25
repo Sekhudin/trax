@@ -1,4 +1,4 @@
-package docs
+package doc
 
 import (
 	"testing"
@@ -72,7 +72,7 @@ func TestApplyGroup(t *testing.T) {
 	}
 }
 
-func TestApplyDocs(t *testing.T) {
+func TestApply(t *testing.T) {
 	t.Run("should apply all fields when provided", func(t *testing.T) {
 		cmd := &cobra.Command{}
 
@@ -86,7 +86,7 @@ func TestApplyDocs(t *testing.T) {
 			Version: "1.0.0",
 		}
 
-		result := ApplyDocs(d, cmd)
+		result := Apply(d, cmd)
 
 		if result != cmd {
 			t.Fatalf("expected same command pointer returned")
@@ -119,7 +119,7 @@ func TestApplyDocs(t *testing.T) {
 
 		d := &Docs{}
 
-		ApplyDocs(d, cmd)
+		Apply(d, cmd)
 
 		if cmd.GroupID != "existing" ||
 			cmd.Use != "existing-use" ||
@@ -145,7 +145,7 @@ func TestApplyDocs(t *testing.T) {
 			Short: "short",
 		}
 
-		ApplyDocs(d, cmd)
+		Apply(d, cmd)
 
 		if cmd.Use != "new" {
 			t.Fatalf("Use should be updated")

@@ -1,50 +1,50 @@
 package show
 
 import (
-	"github.com/sekhudin/trax/internal/docs"
-	"github.com/sekhudin/trax/internal/output"
-
+	"github.com/sekhudin/trax/internal/app"
+	"github.com/sekhudin/trax/internal/doc"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 type showconfig struct {
-	flags *pflag.FlagSet
-	out   *output.Context
+	ctx *app.Context
 }
 
-var (
-	sc        = showconfig{}
-	scCommand = docs.ApplyDocs(&doc.config, &cobra.Command{
-		PreRunE: sc.preRunE,
-		RunE:    sc.runE,
+func NewConfigCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
+	s := showconfig{ctx: ctx}
+	cmd := doc.Apply(docs, &cobra.Command{
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return s.preRunE()
+		},
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return s.runE(cmd)
+		},
 	})
-)
 
-func init() {
-	sc.flags = scCommand.Flags()
-	sc.out = output.New(scCommand.OutOrStdout())
+	flags := cmd.Flags()
+	flags.Bool("json", false, "output as json")
 
-	sc.flags.Bool("json", false, "output as json")
+	return cmd
 }
 
-func (s *showconfig) preRunE(cmd *cobra.Command, args []string) error {
-	s.out.Info("config", "show trax config\n")
+func (s *showconfig) preRunE() error {
+	s.ctx.Out.Info("config", "show trax config\n")
 
 	return nil
 }
 
-func (s *showconfig) runE(cmd *cobra.Command, args []string) error {
-	asJSON, err := s.flags.GetBool("json")
+func (s *showconfig) runE(cmd *cobra.Command) error {
+	asJSON, err := cmd.Flags().GetBool("json")
 	if err != nil {
 		return err
 	}
 
 	settings := viper.AllSettings()
 	if asJSON {
-		return s.out.AsJSON(settings)
+		return s.ctx.Out.AsJSON(settings)
 	}
 
-	return s.out.AsFlat("", settings)
+	return s.ctx.Out.AsFlat("", settings)
 }
