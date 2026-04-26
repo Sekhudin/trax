@@ -22,12 +22,12 @@ func ParseFilePath(out string, allowedExts []string) (*FilePath, error) {
 		return nil, appErr.NewValidationError("path", "path cannot be empty")
 	}
 
-	abs, err := filepath.Abs(clean)
+	rel, err := filepath.Rel(".", clean)
 	if err != nil {
 		return nil, err
 	}
 
-	ext := strings.ToLower(filepath.Ext(abs))
+	ext := strings.ToLower(filepath.Ext(rel))
 	if ext == "" {
 		msg := fmt.Sprintf(
 			"path: %q must include file extension (allowed: %q)",
@@ -46,9 +46,9 @@ func ParseFilePath(out string, allowedExts []string) (*FilePath, error) {
 	}
 
 	return &FilePath{
-		Full:     abs,
-		Dir:      filepath.Dir(abs),
-		Filename: filepath.Base(abs),
+		Full:     rel,
+		Dir:      filepath.Dir(rel),
+		Filename: filepath.Base(rel),
 		Ext:      ext,
 	}, nil
 }

@@ -38,7 +38,7 @@ func (h *Handler) printCoreError(e *appErr.CoreError) {
 	h.out.Error(scope, e.Message)
 
 	if e.Err != nil {
-		h.out.Info("cause", e.Err.Error())
+		h.out.Cause("cause", e.Err.Error())
 	}
 }
 

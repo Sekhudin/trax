@@ -13,6 +13,7 @@ const (
 	LevelSuccess
 	LevelWarn
 	LevelError
+	LevelCause
 )
 
 type Options struct {
@@ -32,7 +33,7 @@ func New(w io.Writer, opt Options) *Context {
 	return &Context{
 		w:     w,
 		opt:   opt,
-		color: NewColorizer(opt.NoColor),
+		color: *NewColorizer(opt.NoColor),
 	}
 }
 
@@ -86,6 +87,8 @@ func (c *Context) icon(level Level) string {
 		return c.color.Yellow("⚠")
 	case LevelError:
 		return c.color.Red("✖")
+	case LevelCause:
+		return c.color.Gray("   ↳")
 	default:
 		return c.color.Blue("ℹ")
 	}
@@ -99,6 +102,8 @@ func (c *Context) colorScope(level Level, s string) string {
 		return c.color.Yellow(s)
 	case LevelError:
 		return c.color.Red(s)
+	case LevelCause:
+		return c.color.Bold(s)
 	default:
 		return c.color.Blue(s)
 	}
@@ -112,6 +117,8 @@ func (l Level) String() string {
 		return "warn"
 	case LevelError:
 		return "error"
+	case LevelCause:
+		return "cause"
 	default:
 		return "info"
 	}
@@ -131,4 +138,8 @@ func (c *Context) Warn(scope, msg string) {
 
 func (c *Context) Error(scope, msg string) {
 	c.notify(LevelError, scope, msg)
+}
+
+func (c *Context) Cause(scope, msg string) {
+	c.notify(LevelCause, scope, msg)
 }

@@ -3,6 +3,7 @@ package output
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -81,6 +82,7 @@ func TestIcon_ByLevel(t *testing.T) {
 		{LevelSuccess, "✔"},
 		{LevelWarn, "⚠"},
 		{LevelError, "✖"},
+		{LevelCause, "   ↳"},
 	}
 
 	for _, tt := range tests {
@@ -101,6 +103,7 @@ func TestColorScope_ByLevel(t *testing.T) {
 		{LevelSuccess},
 		{LevelWarn},
 		{LevelError},
+		{LevelCause},
 	}
 
 	for _, tt := range tests {
@@ -120,6 +123,7 @@ func TestLevelString(t *testing.T) {
 		{LevelSuccess, "success"},
 		{LevelWarn, "warn"},
 		{LevelError, "error"},
+		{LevelCause, "cause"},
 	}
 
 	for _, tt := range tests {
@@ -137,13 +141,76 @@ func TestPublicHelpers(t *testing.T) {
 	ctx.Success("b", "2")
 	ctx.Warn("c", "3")
 	ctx.Error("d", "4")
+	ctx.Cause("e", "5")
 
 	out := buf.String()
 
 	if !strings.Contains(out, "ℹ") ||
 		!strings.Contains(out, "✔") ||
 		!strings.Contains(out, "⚠") ||
-		!strings.Contains(out, "✖") {
+		!strings.Contains(out, "✖") ||
+		!strings.Contains(out, "   ↳") {
 		t.Fatal(out)
 	}
+}
+
+func TestNotifyJSON_SuccessPath_Explicit(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	ctx := newCtx(buf, Options{
+		JSON:    true,
+		NoColor: true,
+	})
+
+	ctx.Info("scope-x", "message-x")
+
+	var out map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+
+	if out["level"] != "info" {
+		t.Fatalf("level mismatch: %v", out)
+	}
+	if out["scope"] != "scope-x" {
+		t.Fatalf("scope mismatch: %v", out)
+	}
+	if out["message"] != "message-x" {
+		t.Fatalf("message mismatch: %v", out)
+	}
+}
+
+func TestNotifyJSON_MarshalErrorPath_Fixed(t *testing.T) {
+	buf := bytes.NewBuffer(nil)
+	ctx := newCtx(buf, Options{
+		JSON:    true,
+		NoColor: true,
+	})
+
+	bad := string([]byte{0xff, 0xfe, 0xfd})
+
+	ctx.notify(LevelError, "scope", bad)
+
+	out := buf.String()
+
+	if !strings.Contains(out, `"error"`) {
+		t.Fatalf("expected fallback json error, got: %s", out)
+	}
+}
+
+type failWriter struct{}
+
+func (f failWriter) Write(p []byte) (int, error) {
+	return 0, fmt.Errorf("write error")
+}
+
+func TestNotifyJSON_WriteErrorFallback(t *testing.T) {
+	ctx := &Context{
+		w: &failWriter{},
+		opt: Options{
+			JSON: true,
+		},
+		color: *NewColorizer(true),
+	}
+
+	ctx.notifyJSON(LevelInfo, "scope", "msg")
 }
