@@ -34,7 +34,6 @@ func TestAsFlat_SimpleMap(t *testing.T) {
 
 	out := buf.String()
 
-	// harus sorted
 	if !strings.Contains(out, "a = 1") || !strings.Contains(out, "b = 2") {
 		t.Fatal(out)
 	}

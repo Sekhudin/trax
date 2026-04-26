@@ -48,7 +48,6 @@ func TestAsJSON_Success(t *testing.T) {
 		t.Fatal("invalid json output:", err)
 	}
 
-	// cek struktur hasil normalisasi
 	if out["a"].(float64) != 1 {
 		t.Fatal(out)
 	}
