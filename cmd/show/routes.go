@@ -13,6 +13,7 @@ import (
 
 type showroutes struct {
 	ctx *app.Context
+	cfg *routes.Config
 }
 
 func NewRoutesCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
@@ -50,6 +51,14 @@ func (s *showroutes) preRunE(cmd *cobra.Command) error {
 	viper.BindPFlag("routes.root", flags.Lookup("root"))
 	viper.BindPFlag("routes.file", flags.Lookup("file"))
 
+	cfg, err := routes.NewConfig()
+	if err != nil {
+		return err
+	}
+
+	s.setCfg(cfg)
+	s.ctx.Out.Info("routes", fmt.Sprintf("using %q strategy \n", cfg.Strategy))
+
 	return nil
 }
 
@@ -66,28 +75,26 @@ func (s *showroutes) runE(cmd *cobra.Command) error {
 		return err
 	}
 
-	cfg, err := routes.NewConfig()
+	b := routes.NewBuilder(s.cfg)
+	r, err := b.Build()
 	if err != nil {
 		return err
 	}
 
-	s.ctx.Out.Info("routes", fmt.Sprintf("using %q strategy \n", cfg.Strategy))
-	selector, err := routes.Show(cfg)
-	if err != nil {
-		return err
-	}
-
-	val, err := selector(key)
+	val, err := r.Selector(key)
 	if err != nil {
 		return err
 	}
 
 	if asJSON {
 		s.ctx.Out.AsJSON(val)
-		return nil
+	} else {
+		s.ctx.Out.AsFlat("", val)
 	}
 
-	s.ctx.Out.AsFlat("", val)
-
 	return nil
+}
+
+func (s *showroutes) setCfg(cfg *routes.Config) {
+	s.cfg = cfg
 }

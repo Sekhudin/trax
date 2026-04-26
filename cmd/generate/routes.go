@@ -5,6 +5,7 @@ import (
 
 	"github.com/sekhudin/trax/internal/app"
 	"github.com/sekhudin/trax/internal/doc"
+	"github.com/sekhudin/trax/internal/fs"
 	"github.com/sekhudin/trax/modules/routes"
 
 	"github.com/spf13/cobra"
@@ -65,17 +66,28 @@ func (g *generateroutes) preRunE(cmd *cobra.Command) error {
 	}
 
 	g.setCfg(cfg)
+	g.ctx.Out.Info("routes", fmt.Sprintf("using %q strategy (no-deps: %v)\n", g.cfg.Strategy, g.ctx.Color.Blue(g.cfg.NoDeps)))
 
 	return nil
 }
 
 func (g *generateroutes) runE() error {
-	g.ctx.Out.Info("routes", fmt.Sprintf("using %q strategy (no-deps: %v)\n", g.cfg.Strategy, g.ctx.Color.Blue(g.cfg.NoDeps)))
-	if err := routes.Generate(g.cfg); err != nil {
+	b := routes.NewBuilder(g.cfg)
+	r, err := b.Build()
+	if err != nil {
 		return err
 	}
 
-	return nil
+	gen := routes.NewGenerator(
+		fs.NewOSWriter(),
+		routes.NewTemplate(routes.TemplateDeps{
+			Routes:   r.Routes,
+			Selector: r.Selector,
+			Cfg:      g.cfg,
+		}),
+	)
+
+	return gen.Generate(g.cfg.Output.Full)
 }
 
 func (g *generateroutes) postRunE(cmd *cobra.Command) error {
