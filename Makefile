@@ -20,7 +20,7 @@ test: ## Run all unit tests
 	@go test -v ./...
 
 cov: ## Run all unit tests with coverage
-	@go test -cover ./modules/... -coverprofile=coverage.out
+	@go test -cover ./... -coverprofile=coverage.out
 	@go tool cover -func=coverage.out
 
 covc: cov ## Check if coverage is above ($(MIN_COV)%)
