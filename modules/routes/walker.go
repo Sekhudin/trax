@@ -153,8 +153,6 @@ func (*walker) buildPath(segs []string) string {
 	return p
 }
 
-var nonAlnum = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
-
 func (w *walker) buildName(parts []string) string {
 	var words []string
 
@@ -174,6 +172,8 @@ func (w *walker) buildName(parts []string) string {
 }
 
 func (w *walker) sanitizeInput(s string) string {
+	nonAlnum := regexp.MustCompile(`[^a-zA-Z0-9-]+`)
+
 	s = strings.TrimSpace(s)
 	return nonAlnum.ReplaceAllString(s, "")
 }

@@ -17,16 +17,15 @@ type rawroute struct {
 	Path string `mapstructure:"path"`
 }
 
+type rawroutebuilderItf interface {
+	build() ([]rawroute, error)
+}
+
 type rawroutebuilder struct {
 	cfg *Config
 }
 
-var (
-	nextApp  = nextapp{}
-	nextPage = nextpage{}
-)
-
-func newRawRouteBuilder(cfg *Config) *rawroutebuilder {
+func newRawRouteBuilder(cfg *Config) rawroutebuilderItf {
 	return &rawroutebuilder{cfg: cfg}
 }
 
@@ -70,9 +69,12 @@ func (b *rawroutebuilder) readFile() ([]rawroute, error) {
 }
 
 func (b *rawroutebuilder) readDisc() ([]rawroute, error) {
+	nextApp := newNextApp()
+	nextPage := newNextPage()
+
 	switch b.cfg.Strategy {
 	case "next-app":
-		w := walker{strategy: &nextApp, config: b.cfg, rule: &nextRule.app}
+		w := walker{strategy: nextApp, config: b.cfg, rule: &nextApp.rule.app}
 		rws, err := w.walk()
 		if err != nil {
 			return nil, err
@@ -81,7 +83,7 @@ func (b *rawroutebuilder) readDisc() ([]rawroute, error) {
 		return rws, nil
 
 	case "next-page":
-		w := walker{strategy: &nextPage, config: b.cfg, rule: &nextRule.page}
+		w := walker{strategy: nextPage, config: b.cfg, rule: &nextApp.rule.app}
 		rws, err := w.walk()
 		if err != nil {
 			return nil, err

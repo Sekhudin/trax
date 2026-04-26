@@ -1,89 +1,56 @@
 package routes
 
-import (
-	"github.com/sekhudin/trax/internal/fs"
-)
-
 type finalroute struct {
-	raw      []rawroute
-	routes   []route
-	tree     map[string]*node
-	selector treeselector
+	Raw      []rawroute
+	Routes   []route
+	Tree     map[string]*node
+	Selector treeselector
 }
 
-type generator struct {
-	writer fs.FileWriter
+type builderdeps struct {
+	raw   rawroutebuilderItf
+	route routebuilderItf
+	tree  treebuilderItf
 }
 
-type builder struct{}
+type builder struct {
+	deps builderdeps
+}
 
-var (
-	bd  = newBuilder()
-	gen = newGenerator(fs.NewOSWriter())
-)
+type Builder interface {
+	Build() (*finalroute, error)
+}
 
-func Show(cfg *Config) (treeselector, error) {
-	route, err := bd.build(cfg)
+func NewBuilder(cfg *Config) Builder {
+	return &builder{
+		deps: builderdeps{
+			raw:   newRawRouteBuilder(cfg),
+			route: newRouteBuilder(cfg),
+			tree:  newTreeBuilder(cfg),
+		},
+	}
+}
+
+func (b *builder) Build() (*finalroute, error) {
+	rws, err := b.deps.raw.build()
 	if err != nil {
 		return nil, err
 	}
 
-	return route.selector, nil
-}
-
-func Generate(cfg *Config) error {
-	route, err := bd.build(cfg)
-	if err != nil {
-		return err
-	}
-
-	tpl := newTemplate(&route.routes, route.selector, cfg)
-	tp, err := tpl.build()
-	if err != nil {
-		return err
-	}
-
-	content := []byte(tp)
-
-	return gen.generate(content, cfg)
-}
-
-func newBuilder() *builder {
-	return &builder{}
-}
-
-func newGenerator(writer fs.FileWriter) *generator {
-	return &generator{writer}
-}
-
-func (g *generator) generate(content []byte, cfg *Config) error {
-	return g.writer.Write(cfg.Output.Full, content)
-}
-
-func (*builder) build(cfg *Config) (*finalroute, error) {
-	rwb := newRawRouteBuilder(cfg)
-	rb := newRouteBuilder(cfg)
-	tb := newTreeBuilder(cfg)
-
-	rws, err := rwb.build()
+	rs, err := b.deps.route.build(rws)
 	if err != nil {
 		return nil, err
 	}
 
-	rs, err := rb.build(rws)
-	if err != nil {
-		return nil, err
-	}
-
-	tr, trs, err := tb.build(rs)
+	tr, trs, err := b.deps.tree.build(rs)
 	if err != nil {
 		return nil, err
 	}
 
 	return &finalroute{
-		raw:      rws,
-		routes:   rs,
-		tree:     tr,
-		selector: trs,
+		Raw:      rws,
+		Routes:   rs,
+		Tree:     tr,
+		Selector: trs,
 	}, nil
 }

@@ -14,16 +14,15 @@ import (
 
 type treeselector func(selector string) (map[string]any, error)
 
+type treebuilderItf interface {
+	build([]route) (map[string]*node, treeselector, error)
+}
+
 type treebuilder struct {
 	cfg *Config
 }
 
-var routeRule = routerule{
-	identPattern:  regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`),
-	staticPattern: regexp.MustCompile(`^[A-Za-z0-9_-]+$`),
-}
-
-func newTreeBuilder(cfg *Config) *treebuilder {
+func newTreeBuilder(cfg *Config) treebuilderItf {
 	return &treebuilder{cfg: cfg}
 }
 
@@ -36,15 +35,12 @@ func (b *treebuilder) build(rs []route) (map[string]*node, treeselector, error) 
 		}
 	}
 
-	trs, err := b.createSelector(b.toMap(tr))
-	if err != nil {
-		return nil, nil, err
-	}
+	trs := b.createSelector(b.toMap(tr))
 
 	return tr, trs, nil
 }
 
-func (*treebuilder) createSelector(tr map[string]any) (treeselector, error) {
+func (*treebuilder) createSelector(tr map[string]any) treeselector {
 	prefix := viper.GetString("routes.prefix")
 
 	v := viper.New()
@@ -86,7 +82,7 @@ func (*treebuilder) createSelector(tr map[string]any) (treeselector, error) {
 
 			return nil, appErr.NewValidationError("selector", msg)
 		}
-	}, nil
+	}
 }
 
 func (b *treebuilder) toMap(nds map[string]*node) map[string]any {
@@ -159,12 +155,15 @@ func (b *treebuilder) insert(r route, current map[string]*node) error {
 }
 
 func (b *treebuilder) normalizePart(r route, part string) (string, string, error) {
+	identPattern := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+	staticPattern := regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
 	if part == "*" {
 		return b.cfg.Symbols.Wildcard, "wildcard", nil
 	}
 
 	if cut, found := strings.CutPrefix(part, ":"); found {
-		if !routeRule.identPattern.MatchString(cut) {
+		if !identPattern.MatchString(cut) {
 			msg := fmt.Sprintf("%q invalid param name: %s", r.name, cut)
 
 			return "", "", appErr.NewValidationError("path", msg)
@@ -172,7 +171,7 @@ func (b *treebuilder) normalizePart(r route, part string) (string, string, error
 		return b.cfg.Symbols.Param, "param", nil
 	}
 
-	if !routeRule.staticPattern.MatchString(part) {
+	if !staticPattern.MatchString(part) {
 		msg := fmt.Sprintf("%q invalid path segment: %s", r.name, part)
 
 		return "", "", appErr.NewValidationError("path", msg)

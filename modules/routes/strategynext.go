@@ -10,15 +10,11 @@ import (
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-type nextapp struct{}
-
-type nextpage struct{}
-
 type nextrule struct {
 	NonRouteDir affix
 	SlotDir     affix
-	GroupDir    affix
 
+	Group  affix
 	Params affix
 	Slug   affix
 	OSlug  affix
@@ -34,18 +30,62 @@ type nextrule struct {
 	app  walkrule
 }
 
-var (
-	nextExts = map[string]struct{}{
+type nextapp struct {
+	rule *nextrule
+}
+
+type nextpage struct {
+	rule *nextrule
+}
+
+func newNextApp() *nextapp {
+	return &nextapp{
+		rule: newNextRule(),
+	}
+}
+
+func newNextPage() *nextpage {
+	return &nextpage{
+		rule: newNextRule(),
+	}
+}
+
+func (n *nextapp) shouldSkip(p string, d fs.DirEntry) error {
+	if n.rule.isNonRouteDir(d) {
+		return filepath.SkipDir
+	}
+
+	if n.rule.isSlotDir(d) {
+		return filepath.SkipDir
+	}
+
+	return n.rule.shouldSkip(d)
+}
+
+func (n *nextapp) normalizeSegment(seg string) (string, error) {
+	return n.rule.normalizeSegment(seg)
+}
+
+func (n *nextpage) shouldSkip(p string, d fs.DirEntry) error {
+	return n.rule.shouldSkip(d)
+}
+
+func (n *nextpage) normalizeSegment(seg string) (string, error) {
+	return n.rule.normalizeSegment(seg)
+}
+
+func newNextRule() *nextrule {
+	nextExts := map[string]struct{}{
 		".js":  {},
 		".jsx": {},
 		".tsx": {},
 	}
 
-	nextRule = nextrule{
+	return &nextrule{
 		NonRouteDir: affix{pre: "_"},
 		SlotDir:     affix{pre: "@"},
-		GroupDir:    affix{pre: "(", suf: ")"},
 
+		Group:  affix{pre: "(", suf: ")"},
 		Params: affix{pre: "[", suf: "]"},
 		Slug:   affix{pre: "[...", suf: "]"},
 		OSlug:  affix{pre: "[[...", suf: "]]"},
@@ -110,35 +150,11 @@ var (
 			},
 		},
 	}
-)
-
-func (*nextapp) shouldSkip(p string, d fs.DirEntry) error {
-	if nextRule.isNonRouteDir(d) {
-		return filepath.SkipDir
-	}
-
-	if nextRule.isSlotDir(d) {
-		return filepath.SkipDir
-	}
-
-	return nextRule.shouldSkip(d)
-}
-
-func (*nextapp) normalizeSegment(seg string) (string, error) {
-	return nextRule.normalizeSegment(seg)
-}
-
-func (*nextpage) shouldSkip(p string, d fs.DirEntry) error {
-	return nextRule.shouldSkip(d)
-}
-
-func (*nextpage) normalizeSegment(seg string) (string, error) {
-	return nextRule.normalizeSegment(seg)
 }
 
 func (n *nextrule) isNonRouteDir(d fs.DirEntry) bool {
 	if d.IsDir() {
-		return strings.HasPrefix(d.Name(), nextRule.NonRouteDir.pre)
+		return strings.HasPrefix(d.Name(), n.NonRouteDir.pre)
 	}
 
 	return false
@@ -146,7 +162,7 @@ func (n *nextrule) isNonRouteDir(d fs.DirEntry) bool {
 
 func (n *nextrule) isSlotDir(d fs.DirEntry) bool {
 	if d.IsDir() {
-		return strings.HasPrefix(d.Name(), nextRule.SlotDir.pre)
+		return strings.HasPrefix(d.Name(), n.SlotDir.pre)
 	}
 
 	return false
@@ -178,26 +194,19 @@ func (n *nextrule) normalizeSegment(seg string) (string, error) {
 	}
 
 	kind := n.segmentKind(seg)
-	if kind == "Static" {
-		return seg, nil
-	}
-
-	a, err := n.getAffix(kind)
-	if err != nil {
-		return "", err
-	}
-
-	if strings.HasPrefix(seg, a.pre) {
-		if !strings.HasSuffix(seg, a.suf) {
-			msg := fmt.Sprintf("%q invalid segment", seg)
-
-			return "", appErr.NewInvalidConfigError("path", msg)
+	if kind != "Static" {
+		a := n.getAffix(kind)
+		if strings.HasPrefix(seg, a.pre) {
+			if !strings.HasSuffix(seg, a.suf) {
+				msg := fmt.Sprintf("%q invalid segment", seg)
+				return "", appErr.NewInvalidConfigError("path", msg)
+			}
 		}
-	}
 
-	seg = strings.TrimPrefix(seg, a.pre)
-	seg = strings.TrimSuffix(seg, a.suf)
-	seg = strings.TrimSpace(seg)
+		seg = strings.TrimPrefix(seg, a.pre)
+		seg = strings.TrimSuffix(seg, a.suf)
+		seg = strings.TrimSpace(seg)
+	}
 
 	switch kind {
 	case "Group":
@@ -216,7 +225,7 @@ func (n *nextrule) normalizeSegment(seg string) (string, error) {
 
 func (n *nextrule) segmentKind(seg string) string {
 	switch {
-	case strings.HasPrefix(seg, n.GroupDir.pre) && strings.HasSuffix(seg, n.GroupDir.suf):
+	case strings.HasPrefix(seg, n.Group.pre) && strings.HasSuffix(seg, n.Group.suf):
 		return "Group"
 
 	case strings.HasPrefix(seg, n.OSlug.pre):
@@ -233,13 +242,13 @@ func (n *nextrule) segmentKind(seg string) string {
 	}
 }
 
-func (n *nextrule) getAffix(field string) (affix, error) {
+func (n *nextrule) getAffix(field string) affix {
 	rv := reflect.ValueOf(n)
 	rv = reflect.Indirect(rv).FieldByName(field)
 
 	if !rv.IsValid() {
-		return affix{}, appErr.NewInvalidConfigError("path", "affix struct not found")
+		panic("(nextrule:getAffix) invalid affix field: " + field)
 	}
 
-	return rv.Interface().(affix), nil
+	return rv.Interface().(affix)
 }

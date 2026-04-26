@@ -11,7 +11,7 @@ import (
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-type symbol struct {
+type symbols struct {
 	Param    string
 	Wildcard string
 	Root     string
@@ -25,7 +25,7 @@ type Config struct {
 	File           *path.FilePath
 	Output         *path.FilePath
 	Oext           string
-	Symbols        *symbol
+	Symbols        *symbols
 }
 
 type configrule struct {
@@ -37,9 +37,9 @@ type configrule struct {
 	rootSymb    map[string]struct{}
 }
 
-var cfgRule = newConfigRule()
-
 func NewConfig() (*Config, error) {
+	cfgRule := newConfigRule()
+
 	cfg := Config{
 		Strategy: viper.GetString("routes.strategy"),
 		Root:     viper.GetString("routes.root"),
@@ -125,13 +125,13 @@ func (*configrule) IsFileStrategy(strategy string) bool {
 	return strategy == "file"
 }
 
-func (*configrule) isValidStartegy(strategy string) bool {
-	_, ok := cfgRule.strategies[strategy]
+func (c *configrule) isValidStartegy(strategy string) bool {
+	_, ok := c.strategies[strategy]
 	return ok
 }
 
-func (r *configrule) normalizeSymbols() *symbol {
-	sym := symbol{
+func (r *configrule) normalizeSymbols() *symbols {
+	sym := symbols{
 		Param:    viper.GetString("routes.symbols.param"),
 		Wildcard: viper.GetString("routes.symbols.wildcard"),
 		Root:     viper.GetString("routes.symbols.root"),

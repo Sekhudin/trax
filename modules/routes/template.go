@@ -10,17 +10,27 @@ import (
 	"github.com/sekhudin/trax/internal/ts"
 )
 
+type Template interface {
+	Build() (string, error)
+}
+
+type TemplateDeps struct {
+	Routes   []route
+	Selector treeselector
+	Cfg      *Config
+}
+
 type template struct {
-	routes   *[]route
-	selector treeselector
-	cfg      *Config
+	deps TemplateDeps
 }
 
-func newTemplate(r *[]route, s treeselector, cfg *Config) *template {
-	return &template{routes: r, selector: s, cfg: cfg}
+func NewTemplate(d TemplateDeps) Template {
+	return &template{
+		deps: d,
+	}
 }
 
-func (t *template) build() (string, error) {
+func (t *template) Build() (string, error) {
 	var b strings.Builder
 
 	b.WriteString(t.warning())
@@ -53,16 +63,6 @@ func (t *template) build() (string, error) {
 		b.WriteString("\n\n")
 	}
 
-	rTree, err := t.rTreeJSON()
-	if err != nil {
-		return "", err
-	}
-
-	rRoutes, err := t.rRoutesJSON()
-	if err != nil {
-		return "", err
-	}
-
 	b.WriteString(t.fCleanPath())
 	b.WriteString("\n\n")
 
@@ -78,21 +78,27 @@ func (t *template) build() (string, error) {
 	b.WriteString(t.fCreateRoute())
 	b.WriteString("\n\n")
 
-	b.WriteString(rTree)
+	tree, err := t.rTreeJSON()
+	routes, err := t.rRoutesJSON()
+	if err != nil {
+		return "", err
+	}
+
+	b.WriteString(tree)
 	b.WriteString("\n\n")
 
-	b.WriteString(rRoutes)
+	b.WriteString(routes)
 	b.WriteString("\n\n")
 
 	return b.String(), nil
 }
 
 func (t *template) isTypescrpt() bool {
-	return strings.HasSuffix(t.cfg.Output.Ext, ".ts")
+	return strings.HasSuffix(t.deps.Cfg.Output.Ext, ".ts")
 }
 
 func (t *template) isNoDeps() bool {
-	return t.cfg.NoDeps
+	return t.deps.Cfg.NoDeps
 }
 
 func (*template) warning() string {
@@ -119,8 +125,8 @@ func (*template) tSearchParams() string {
 }
 
 func (t *template) tRoutePattern() string {
-	r := make([]string, 0, len(*t.routes))
-	for _, p := range *t.routes {
+	r := make([]string, 0, len(t.deps.Routes))
+	for _, p := range t.deps.Routes {
 		r = append(r, p.path)
 	}
 
@@ -412,7 +418,7 @@ func (t *template) fCreateRoute() string {
 }
 
 func (t *template) rTreeJSON() (string, error) {
-	data, err := t.selector("")
+	data, err := t.deps.Selector("")
 	if err != nil {
 		return "", err
 	}
@@ -450,7 +456,7 @@ func (t *template) serilizeRoutes(data map[string]any, indent string, currentPat
 
 		switch v := value.(type) {
 		case string:
-			if key == t.cfg.Symbols.Root {
+			if key == t.deps.Cfg.Symbols.Root {
 				val := fmt.Sprintf("createRoute(tree.%s)", newPath)
 				b.WriteString(val)
 			} else {
@@ -468,7 +474,7 @@ func (t *template) serilizeRoutes(data map[string]any, indent string, currentPat
 }
 
 func (t *template) rRoutesJSON() (string, error) {
-	data, err := t.selector("")
+	data, err := t.deps.Selector("")
 	if err != nil {
 		return "", err
 	}

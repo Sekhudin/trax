@@ -2,18 +2,12 @@ package routes
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/spf13/viper"
 
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
-
-type routerule struct {
-	identPattern  *regexp.Regexp
-	staticPattern *regexp.Regexp
-}
 
 type route struct {
 	name  string
@@ -28,11 +22,15 @@ type node struct {
 	children map[string]*node
 }
 
+type routebuilderItf interface {
+	build([]rawroute) ([]route, error)
+}
+
 type routebuilder struct {
 	cfg *Config
 }
 
-func newRouteBuilder(cfg *Config) *routebuilder {
+func newRouteBuilder(cfg *Config) routebuilderItf {
 	return &routebuilder{cfg: cfg}
 }
 
