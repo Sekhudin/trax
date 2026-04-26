@@ -12,29 +12,32 @@ type documentation struct {
 	routes doc.Docs
 }
 
-var docs = documentation{
-	root: doc.Docs{
-		Use:     "show",
-		Aliases: []string{"s"},
-		Short:   "Inspect project information",
-	},
+func newDocs() *documentation {
+	return &documentation{
+		root: doc.Docs{
+			Use:     "show",
+			Aliases: []string{"s"},
+			Short:   "Inspect project information",
+		},
 
-	config: doc.Docs{
-		Use:   "config",
-		Short: "Show current Trax configuration",
-		Long: doc.Paragraph(
-			"Displays the resolved configuration used by Trax.",
-		),
-	},
+		config: doc.Docs{
+			Use:   "config",
+			Short: "Show current Trax configuration",
+			Long: doc.Paragraph(
+				"Displays the resolved configuration used by Trax.",
+			),
+		},
 
-	routes: doc.Docs{
-		Use:   "routes",
-		Short: "View registered routes",
-		Long:  "Displays all registered routes.",
-	},
+		routes: doc.Docs{
+			Use:   "routes",
+			Short: "View registered routes",
+			Long:  "Displays all registered routes.",
+		},
+	}
 }
 
 func New(ctx *app.Context) *cobra.Command {
+	docs := newDocs()
 	cmd := doc.Apply(&docs.root, &cobra.Command{
 		Args: cobra.NoArgs,
 	})

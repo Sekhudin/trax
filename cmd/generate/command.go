@@ -13,37 +13,40 @@ type documentation struct {
 	routes doc.Docs
 }
 
-var docs = documentation{
-	root: doc.Docs{
-		Use:     "generate",
-		Aliases: []string{"g"},
-		Short:   "Generate artifacts",
-	},
+func newDocs() *documentation {
+	return &documentation{
+		root: doc.Docs{
+			Use:     "generate",
+			Aliases: []string{"g"},
+			Short:   "Generate artifacts",
+		},
 
-	config: doc.Docs{
-		Use:   "config",
-		Short: "Generate configuration file",
-		Long: doc.Paragraph(
-			"Generate configuration file for your project",
-			doc.Line(
-				"Supported output formats:",
-				"  - JSON (trax.json)",
-				"  - YAML (trax.yaml)",
-				"  - TOML (trax.toml)",
+		config: doc.Docs{
+			Use:   "config",
+			Short: "Generate configuration file",
+			Long: doc.Paragraph(
+				"Generate configuration file for your project",
+				doc.Line(
+					"Supported output formats:",
+					"  - JSON (trax.json)",
+					"  - YAML (trax.yaml)",
+					"  - TOML (trax.toml)",
+				),
 			),
-		),
-	},
+		},
 
-	routes: doc.Docs{
-		Use:   "routes",
-		Short: "Generate type-safe route helpers",
-		Long: doc.Paragraph(
-			"Generates type-safe route helpers from your project structure or given routes declaration",
-		),
-	},
+		routes: doc.Docs{
+			Use:   "routes",
+			Short: "Generate type-safe route helpers",
+			Long: doc.Paragraph(
+				"Generates type-safe route helpers from your project structure or given routes declaration",
+			),
+		},
+	}
 }
 
 func New(ctx *app.Context) *cobra.Command {
+	docs := newDocs()
 	cmd := doc.Apply(&docs.root, &cobra.Command{
 		Args: cobra.ExactArgs(1),
 	})
