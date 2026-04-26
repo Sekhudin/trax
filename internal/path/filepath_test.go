@@ -119,7 +119,6 @@ func TestParseFilePath_UnsupportedExtension(t *testing.T) {
 }
 
 func TestParseFilePath_RelPathEdgeCase(t *testing.T) {
-	// edge case: relative path resolution from current dir
 	input := "./src/routes.ts"
 
 	fp, err := ParseFilePath(input, []string{".ts"})
@@ -143,17 +142,13 @@ func TestIsAllowedExt(t *testing.T) {
 }
 
 func TestParseFilePath_RelErrorImpossiblePath(t *testing.T) {
-	// NOTE: filepath.Rel hampir tidak bisa error di normal OS,
-	// tapi kita tetap cover branch error dengan invalid root simulation
 	_, err := filepath.Rel(string(rune(0)), "test.ts")
 	if err == nil {
-		// skip kalau OS tidak error
 		t.Skip("cannot trigger Rel error on this OS")
 	}
 
 	_, err2 := ParseFilePath("test.ts", []string{".ts"})
 	if err2 != nil {
-		// just ensure function still behaves normally
 		var ce *appErr.CoreError
 		_ = errors.As(err2, &ce)
 	}
