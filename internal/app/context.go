@@ -6,33 +6,31 @@ import (
 
 	"github.com/sekhudin/trax/internal/output"
 	"github.com/sekhudin/trax/internal/runner"
+	"github.com/spf13/cobra"
 )
 
 type Context struct {
-	Version string
-	Color   output.Colorizer
-	Out     *output.Context
-	OutOpt  output.Options
-	Runner  runner.Runner
+	Color  *output.Colorizer
+	Out    *output.Context
+	Runner runner.Runner
 }
 
-func New(v string) *Context {
-	outOpt := output.Options{}
+func New(opt output.Options) *Context {
 	return &Context{
-		Version: version(v),
-		Color:   output.NewColorizer(outOpt.NoColor),
-		Out:     output.New(os.Stdout, outOpt),
-		OutOpt:  outOpt,
-		Runner:  runner.NewRunner(os.Stdout, os.Stderr),
+		Color:  output.NewColorizer(opt.NoColor),
+		Out:    output.New(os.Stdout, opt),
+		Runner: runner.NewRunner(os.Stdout, os.Stderr),
 	}
 }
 
-func version(v string) string {
-	if v != "" {
-		return v
+var readBuildInfo = debug.ReadBuildInfo
+
+func Version(version string) string {
+	if version != "" {
+		return version
 	}
 
-	if info, ok := debug.ReadBuildInfo(); ok {
+	if info, ok := readBuildInfo(); ok {
 		if info.Main.Version != "" && info.Main.Version != "(devel)" {
 			return info.Main.Version
 		}
@@ -41,11 +39,8 @@ func version(v string) string {
 	return "dev"
 }
 
-func (c *Context) SetOutOptDebug(val bool) {
-	c.OutOpt.Debug = val
-}
-
-func (c *Context) SetOutOptNoColor(val bool) {
-	c.OutOpt.NoColor = val
-	c.Color.NoColor = val
+func (c *Context) ApplyOptions(cmd *cobra.Command, opt output.Options) {
+	c.Color = output.NewColorizer(opt.NoColor)
+	c.Out = output.New(cmd.OutOrStdout(), opt)
+	c.Runner = runner.NewRunner(cmd.OutOrStdout(), cmd.ErrOrStderr())
 }
