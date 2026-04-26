@@ -31,14 +31,13 @@ func TestOrganizeImport(t *testing.T) {
 	mods := []string{
 		"fs",
 		"path",
-		"fs", // duplicate
+		"fs",
 		"http",
-		"path", // duplicate
+		"path",
 	}
 
 	out := OrganizeImport(mods)
 
-	// urutan tetap sesuai first occurrence
 	expected := "fs, path, http"
 	if out != expected {
 		t.Fatalf("expected %q, got %q", expected, out)
@@ -58,7 +57,6 @@ func TestOrganizeStringUnion(t *testing.T) {
 
 		out := OrganizeStringUnion(ss)
 
-		// urutan sesuai first occurrence
 		expected := `"A" | "B" | "C"`
 		if out != expected {
 			t.Fatalf("expected %q, got %q", expected, out)
