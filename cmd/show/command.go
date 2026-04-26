@@ -35,7 +35,9 @@ var docs = documentation{
 }
 
 func New(ctx *app.Context) *cobra.Command {
-	cmd := doc.Apply(&docs.root, &cobra.Command{})
+	cmd := doc.Apply(&docs.root, &cobra.Command{
+		Args: cobra.NoArgs,
+	})
 
 	configCmd := NewConfigCmd(&docs.config, ctx)
 	routesCmd := NewRoutesCmd(&docs.routes, ctx)

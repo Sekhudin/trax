@@ -14,6 +14,7 @@ type showconfig struct {
 func NewConfigCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
 	s := showconfig{ctx: ctx}
 	cmd := doc.Apply(docs, &cobra.Command{
+		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return s.preRunE()
 		},

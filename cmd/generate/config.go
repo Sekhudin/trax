@@ -30,6 +30,7 @@ func NewConfigCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
 	}
 
 	cmd := doc.Apply(docs, &cobra.Command{
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return g.runE(cmd)
 		},

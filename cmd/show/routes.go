@@ -18,6 +18,7 @@ type showroutes struct {
 func NewRoutesCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
 	s := showroutes{ctx: ctx}
 	cmd := doc.Apply(docs, &cobra.Command{
+		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return s.preRunE(cmd)
 		},

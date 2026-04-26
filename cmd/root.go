@@ -12,6 +12,7 @@ import (
 	"github.com/sekhudin/trax/internal/bootstrap"
 	"github.com/sekhudin/trax/internal/clierror"
 	"github.com/sekhudin/trax/internal/doc"
+	"github.com/sekhudin/trax/internal/output"
 
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
@@ -22,16 +23,17 @@ type trax struct {
 
 var Version = ""
 
-func New() (*cobra.Command, *app.Context) {
-	t := trax{ctx: app.New(Version)}
+func New() *cobra.Command {
+	t := trax{ctx: app.New(output.Options{})}
 
 	cmd := &cobra.Command{
 		Use:     "trax",
-		Version: t.ctx.Version,
+		Version: app.Version(Version),
 		Short:   "Powering TypeScript project workflows",
 		Long: doc.Paragraph(
 			"Trax is a CLI tool for automating TypeScript project workflows.",
 		),
+		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -40,7 +42,6 @@ func New() (*cobra.Command, *app.Context) {
 	}
 
 	pFlags := cmd.PersistentFlags()
-
 	pFlags.BoolP("debug", "d", false, "show debug info")
 	pFlags.Bool("no-color", false, "disable color")
 	pFlags.String("config", "", "path to config file")
@@ -54,18 +55,7 @@ func New() (*cobra.Command, *app.Context) {
 
 	cmd.AddCommand(generate.New(t.ctx), show.New(t.ctx))
 
-	return cmd, t.ctx
-}
-
-func Execute() {
-	cmd, ctx := New()
-	cErr := clierror.New(ctx.Out)
-
-	if _, err := cmd.ExecuteC(); err != nil {
-
-		cErr.Print(err)
-		os.Exit(cErr.ExitCode(err))
-	}
+	return cmd
 }
 
 func (t *trax) persistentPreRunE(cmd *cobra.Command) error {
@@ -74,5 +64,24 @@ func (t *trax) persistentPreRunE(cmd *cobra.Command) error {
 		return appErr.NewFlagReadError("config", err)
 	}
 
+	t.ctx.ApplyOptions(cmd, output.Options{
+		Debug:   viper.GetBool("debug"),
+		NoColor: viper.GetBool("no-color"),
+	})
+
 	return bootstrap.LoadConfig(cfgFile)
+}
+
+func Execute() {
+	command := New()
+
+	if cmd, err := command.ExecuteC(); err != nil {
+		cErr := clierror.New(output.New(cmd.OutOrStdout(), output.Options{
+			Debug:   viper.GetBool("debug"),
+			NoColor: viper.GetBool("no-color"),
+		}))
+
+		cErr.Print(err)
+		os.Exit(cErr.ExitCode(err))
+	}
 }

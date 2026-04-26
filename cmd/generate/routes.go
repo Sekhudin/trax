@@ -19,6 +19,7 @@ type generateroutes struct {
 func NewRoutesCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
 	g := generateroutes{ctx: ctx}
 	cmd := doc.Apply(docs, &cobra.Command{
+		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return g.preRunE(cmd)
 		},
@@ -93,7 +94,7 @@ func (g *generateroutes) postRunE(cmd *cobra.Command) error {
 		}
 	}
 
-	g.ctx.Out.Success("routes", fmt.Sprintf("routes written %s", g.ctx.Color.Green(g.cfg.Output.Full)))
+	g.ctx.Out.Success("routes", fmt.Sprintf("routes written %s", g.ctx.Color.Green(g.cfg.Output.Filename)))
 
 	return nil
 }
