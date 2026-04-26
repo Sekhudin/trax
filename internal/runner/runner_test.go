@@ -162,7 +162,6 @@ func TestWriterIsWired(t *testing.T) {
 
 	r := NewRunner(stdout, stderr).(*CommandRunner)
 
-	// verify stdout/stderr assigned correctly
 	if r.Stdout != stdout || r.Stderr != stderr {
 		t.Fatal("writer not wired correctly")
 	}
