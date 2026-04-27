@@ -35,7 +35,7 @@ covc: cov ## Check if coverage is above ($(MIN_COV)%)
 	fi
 
 clean: ## Remove binary and build artifacts
-	@echo "==> Cleaning up..."
+	@echo "Cleaning up..."
 	@rm -rf bin/
 	@rm -f coverage.out
 	@go clean
