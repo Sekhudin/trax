@@ -4,11 +4,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/sekhudin/trax/internal/config"
 	"github.com/sekhudin/trax/internal/path"
 )
 
-func testSymbols() *symbols {
-	return &symbols{
+func testSymbols() *config.RoutesSymbols {
+	return &config.RoutesSymbols{
 		Param:    ":",
 		Wildcard: "*",
 		Root:     "$",

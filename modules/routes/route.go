@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/viper"
-
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
@@ -85,9 +83,7 @@ func (b *routebuilder) cleanPath(rw rawroute) (string, error) {
 }
 
 func (b *routebuilder) splitPath(rw rawroute) []string {
-	prefix := viper.GetString("routes.prefix")
-
-	ps := strings.Split(fmt.Sprintf("%s%s", prefix, rw.Path), "/")
+	ps := strings.Split(fmt.Sprintf("%s%s", b.cfg.Prefix, rw.Path), "/")
 	var result []string
 
 	for _, p := range ps {

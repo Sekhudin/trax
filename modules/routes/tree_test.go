@@ -3,13 +3,13 @@ package routes
 import (
 	"testing"
 
-	"github.com/spf13/viper"
+	"github.com/sekhudin/trax/internal/config"
 )
 
 func newTestTreeBuilder() treebuilder {
 	return treebuilder{
 		cfg: &Config{
-			Symbols: &symbols{
+			Symbols: &config.RoutesSymbols{
 				Param:    ":",
 				Wildcard: "*",
 				Root:     "$",
@@ -138,8 +138,7 @@ func TestToMap_WithRootAndChildren(t *testing.T) {
 
 func TestCreateSelector_AllBranches(t *testing.T) {
 	b := newTestTreeBuilder()
-
-	viper.Set("routes.prefix", "api")
+	b.cfg.Prefix = "api"
 
 	tr := map[string]any{
 		"api": map[string]any{
@@ -223,8 +222,7 @@ func TestInsert_ExistingKeyDifferentSegment(t *testing.T) {
 
 func TestCreateSelector_RootAndWeirdSuffixes(t *testing.T) {
 	b := newTestTreeBuilder()
-
-	viper.Set("routes.prefix", "api")
+	b.cfg.Prefix = "api"
 
 	tr := map[string]any{
 		"api": map[string]any{

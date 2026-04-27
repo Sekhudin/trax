@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sekhudin/trax/internal/app"
+	"github.com/sekhudin/trax/internal/config"
 	"github.com/sekhudin/trax/internal/doc"
 	"github.com/sekhudin/trax/modules/routes"
 
@@ -51,7 +52,7 @@ func (s *showroutes) preRunE(cmd *cobra.Command) error {
 	viper.BindPFlag("routes.root", flags.Lookup("root"))
 	viper.BindPFlag("routes.file", flags.Lookup("file"))
 
-	cfg, err := routes.NewConfig()
+	cfg, err := routes.NewConfig(config.New().Routes()).Load()
 	if err != nil {
 		return err
 	}

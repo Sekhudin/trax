@@ -40,18 +40,16 @@ func (b *treebuilder) build(rs []route) (map[string]*node, treeselector, error) 
 	return tr, trs, nil
 }
 
-func (*treebuilder) createSelector(tr map[string]any) treeselector {
-	prefix := viper.GetString("routes.prefix")
-
+func (b *treebuilder) createSelector(tr map[string]any) treeselector {
 	v := viper.New()
 
-	v.SetDefault(prefix, tr[prefix])
+	v.SetDefault(b.cfg.Prefix, tr[b.cfg.Prefix])
 
 	return func(selector string) (map[string]any, error) {
 		if selector != "" {
-			selector = fmt.Sprintf("%s.%s", prefix, selector)
+			selector = fmt.Sprintf("%s.%s", b.cfg.Prefix, selector)
 		} else {
-			selector = prefix
+			selector = b.cfg.Prefix
 		}
 
 		selector = strings.TrimSuffix(selector, "$")

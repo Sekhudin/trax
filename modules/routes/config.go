@@ -4,31 +4,30 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/sekhudin/trax/internal/config"
 	"github.com/sekhudin/trax/internal/path"
-
-	"github.com/spf13/viper"
 
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-type symbols struct {
-	Param    string
-	Wildcard string
-	Root     string
+type RoutesConfig interface {
+	Load() (*Config, error)
+	IsFileStrategy() bool
+	IsValidStartegy() bool
 }
 
 type Config struct {
 	Strategy       string
-	IsFileStrategy bool
 	Root           string
 	NoDeps         bool
+	Prefix         string
+	IsFileStrategy bool
 	File           *path.FilePath
 	Output         *path.FilePath
-	Oext           string
-	Symbols        *symbols
+	Symbols        *config.RoutesSymbols
 }
 
-type configrule struct {
+type rconfigrule struct {
 	fileExts    []string
 	outputExts  []string
 	strategies  map[string]struct{}
@@ -37,67 +36,125 @@ type configrule struct {
 	rootSymb    map[string]struct{}
 }
 
-func NewConfig() (*Config, error) {
-	cfgRule := newConfigRule()
+type rconfig struct {
+	cfg  *config.RoutesConfig
+	rule *rconfigrule
+}
 
-	cfg := Config{
-		Strategy: viper.GetString("routes.strategy"),
-		Root:     viper.GetString("routes.root"),
-		NoDeps:   viper.GetBool("routes.no-deps"),
+func NewConfig(cfg *config.RoutesConfig) RoutesConfig {
+	return &rconfig{
+		cfg:  cfg,
+		rule: newConfigRule(),
 	}
+}
 
-	cfg.IsFileStrategy = cfgRule.IsFileStrategy(cfg.Strategy)
-
-	file := viper.GetString("routes.file")
-	output := viper.GetString("routes.output")
-
-	if cfg.Strategy == "" {
+func (c *rconfig) Load() (*Config, error) {
+	if c.cfg.Strategy == "" {
 		msg := fmt.Sprintf("strategy: <empty>, %q must be provided", "strategy")
 
 		return nil, appErr.NewValidationError("strategy", msg)
 	}
 
-	if !cfgRule.isValidStartegy(cfg.Strategy) {
+	if !c.IsValidStartegy() {
 		msg := fmt.Sprintf("strategy: %q invalid, allowed: %s",
-			cfg.Strategy, "file, next-app or next-page")
+			c.cfg.Strategy, "file, next-app or next-page")
 
 		return nil, appErr.NewValidationError("strategy", msg)
 	}
 
-	if cfg.IsFileStrategy && file == "" {
-		msg := fmt.Sprintf("strategy: %q, %q must be provided", cfg.Strategy, "file")
+	if c.IsFileStrategy() && c.cfg.File == "" {
+		msg := fmt.Sprintf("strategy: %q, %q must be provided", c.cfg.Strategy, "file")
 
 		return nil, appErr.NewValidationError("file", msg)
 	}
 
-	if !cfg.IsFileStrategy && file != "" {
-		msg := fmt.Sprintf("strategy: %q, %q must be unset", cfg.Strategy, "file")
+	if !c.IsFileStrategy() && c.cfg.File != "" {
+		msg := fmt.Sprintf("strategy: %q, %q must be unset", c.cfg.Strategy, "file")
 
 		return nil, appErr.NewValidationError("file", msg)
 	}
 
-	if file != "" {
-		oPath, err := path.ParseFilePath(file, cfgRule.fileExts)
-		if err != nil {
-			return nil, err
-		}
-		cfg.File = oPath
-	}
-
-	oPath, err := path.ParseFilePath(output, cfgRule.outputExts)
+	output, err := path.ParseFilePath(c.cfg.Output, c.rule.outputExts)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.Symbols = cfgRule.normalizeSymbols()
-	cfg.Root = cfgRule.normalizeRootPath(cfg.Root, cfg.Strategy)
-	cfg.Output = oPath
+	cfg := &Config{
+		Strategy:       c.cfg.Strategy,
+		Root:           c.normalizeRoot(),
+		NoDeps:         c.cfg.NoDeps,
+		Prefix:         c.cfg.Prefix,
+		IsFileStrategy: c.IsFileStrategy(),
+		Output:         output,
+		Symbols:        c.normalizeSymbols(),
+	}
 
-	return &cfg, nil
+	if c.cfg.File != "" {
+		file, err := path.ParseFilePath(c.cfg.File, c.rule.fileExts)
+		if err != nil {
+			return nil, err
+		}
+		cfg.File = file
+	}
+
+	return cfg, nil
 }
 
-func newConfigRule() *configrule {
-	return &configrule{
+func (c *rconfig) IsFileStrategy() bool {
+	return c.cfg.Strategy == "file"
+}
+
+func (c *rconfig) IsValidStartegy() bool {
+	_, ok := c.rule.strategies[c.cfg.Strategy]
+	return ok
+}
+
+func (c *rconfig) normalizeSymbols() *config.RoutesSymbols {
+	if _, ok := c.rule.paramSym[c.cfg.Symbols.Param]; !ok {
+		c.cfg.Symbols.Param = "$param"
+	}
+
+	if _, ok := c.rule.wildcardSym[c.cfg.Symbols.Wildcard]; !ok {
+		c.cfg.Symbols.Wildcard = "$wildcard"
+	}
+
+	if _, ok := c.rule.rootSymb[c.cfg.Symbols.Root]; !ok {
+		c.cfg.Symbols.Root = "root"
+	}
+
+	return c.cfg.Symbols
+}
+
+func (c *rconfig) normalizeRoot() string {
+	c.cfg.Root = filepath.Clean(c.cfg.Root)
+
+	var suffix string
+	switch c.cfg.Strategy {
+	case "next-app":
+		suffix = "app"
+
+	case "next-page":
+		suffix = "pages"
+
+	default:
+		suffix = ""
+	}
+
+	if suffix == "" {
+		return c.cfg.Root
+	}
+
+	if filepath.Base(c.cfg.Root) == suffix {
+		return c.cfg.Root
+	}
+
+	c.cfg.Root = filepath.Join(c.cfg.Root, suffix)
+
+	return c.cfg.Root
+}
+
+func newConfigRule() *rconfigrule {
+	return &rconfigrule{
 		fileExts:   []string{".json", ".yaml", ".yml"},
 		outputExts: []string{".js", ".ts"},
 		strategies: map[string]struct{}{
@@ -119,62 +176,4 @@ func newConfigRule() *configrule {
 			"path": {},
 		},
 	}
-}
-
-func (*configrule) IsFileStrategy(strategy string) bool {
-	return strategy == "file"
-}
-
-func (c *configrule) isValidStartegy(strategy string) bool {
-	_, ok := c.strategies[strategy]
-	return ok
-}
-
-func (r *configrule) normalizeSymbols() *symbols {
-	sym := symbols{
-		Param:    viper.GetString("routes.symbols.param"),
-		Wildcard: viper.GetString("routes.symbols.wildcard"),
-		Root:     viper.GetString("routes.symbols.root"),
-	}
-
-	if _, ok := r.paramSym[sym.Param]; !ok {
-		sym.Param = "$param"
-	}
-
-	if _, ok := r.wildcardSym[sym.Wildcard]; !ok {
-		sym.Wildcard = "$wildcard"
-	}
-
-	if _, ok := r.rootSymb[sym.Root]; !ok {
-		sym.Root = "root"
-	}
-
-	return &sym
-}
-
-func (r *configrule) normalizeRootPath(root string, strategy string) string {
-	root = filepath.Clean(root)
-
-	var suffix string
-	switch strategy {
-	case "next-app":
-		suffix = "app"
-
-	case "next-page":
-		suffix = "pages"
-
-	default:
-		suffix = ""
-	}
-
-	if suffix == "" {
-		return root
-	}
-
-	if filepath.Base(root) == suffix {
-		return root
-	}
-
-	root = filepath.Join(root, suffix)
-	return root
 }

@@ -2,8 +2,6 @@ package routes
 
 import (
 	"testing"
-
-	"github.com/spf13/viper"
 )
 
 func TestCleanPath_AllBranches(t *testing.T) {
@@ -64,10 +62,10 @@ func TestCleanPath_AllBranches(t *testing.T) {
 
 func TestSplitPath_WithAndWithoutPrefix(t *testing.T) {
 	b := routebuilder{
-		cfg: &Config{},
+		cfg: &Config{
+			Prefix: "/api",
+		},
 	}
-
-	viper.Set("routes.prefix", "/api")
 
 	rw := rawroute{Path: "/users/list"}
 	parts := b.splitPath(rw)
@@ -76,8 +74,7 @@ func TestSplitPath_WithAndWithoutPrefix(t *testing.T) {
 		t.Fatalf("expected 3 parts, got %v", parts)
 	}
 
-	viper.Set("routes.prefix", "")
-
+	b.cfg.Prefix = ""
 	parts = b.splitPath(rw)
 	if len(parts) != 2 {
 		t.Fatalf("expected 2 parts, got %v", parts)

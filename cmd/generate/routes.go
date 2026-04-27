@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sekhudin/trax/internal/app"
+	"github.com/sekhudin/trax/internal/config"
 	"github.com/sekhudin/trax/internal/doc"
 	"github.com/sekhudin/trax/internal/fs"
 	"github.com/sekhudin/trax/modules/routes"
@@ -60,7 +61,8 @@ func (g *generateroutes) preRunE(cmd *cobra.Command) error {
 	viper.BindPFlag("routes.no-deps", flags.Lookup("no-deps"))
 
 	viper.BindPFlag("formatter", flags.Lookup("formatter"))
-	cfg, err := routes.NewConfig()
+
+	cfg, err := routes.NewConfig(config.New().Routes()).Load()
 	if err != nil {
 		return err
 	}
