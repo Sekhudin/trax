@@ -14,8 +14,18 @@ func (e flatErrWriter) Write(p []byte) (int, error) {
 	return 0, errors.New("write error")
 }
 
-func newFlatTestContext(w io.Writer) *Context {
+func newFlatTestContext(w io.Writer) Context {
 	return New(w, Options{})
+}
+
+func newFlatTestContextStruct(w io.Writer) *context {
+	opt := Options{}
+
+	return &context{
+		w:     w,
+		opt:   opt,
+		color: NewColorizer(opt.NoColor),
+	}
 }
 
 func TestAsFlat_SimpleMap(t *testing.T) {
@@ -130,7 +140,7 @@ func TestAsFlat_WriteErrorPropagation(t *testing.T) {
 
 func TestPrintFlatValue_Direct(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	ctx := newFlatTestContext(buf)
+	ctx := newFlatTestContextStruct(buf)
 
 	err := ctx.printFlatValue("key", 123)
 	if err != nil {

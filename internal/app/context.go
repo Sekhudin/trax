@@ -2,45 +2,52 @@ package app
 
 import (
 	"os"
-	"runtime/debug"
 
 	"github.com/sekhudin/trax/internal/output"
 	"github.com/sekhudin/trax/internal/runner"
 	"github.com/spf13/cobra"
 )
 
-type Context struct {
-	Color  *output.Colorizer
-	Out    *output.Context
-	Runner runner.Runner
+type Context interface {
+	Color() output.Colorizer
+	Out() output.Context
+	Runner() runner.Runner
+
+	ApplyOptions(cmd *cobra.Command, opt output.Options)
 }
 
-func New(opt output.Options) *Context {
-	return &Context{
-		Color:  output.NewColorizer(opt.NoColor),
-		Out:    output.New(os.Stdout, opt),
-		Runner: runner.NewRunner(os.Stdout, os.Stderr),
+type context struct {
+	color   output.Colorizer
+	out     output.Context
+	crunner runner.Runner
+}
+
+func New(opt output.Options) Context {
+	out := output.New(os.Stdout, opt)
+
+	return &context{
+		out:     out,
+		color:   out.Color(),
+		crunner: runner.NewRunner(os.Stdout, os.Stderr),
 	}
 }
 
-var readBuildInfo = debug.ReadBuildInfo
+func (c *context) ApplyOptions(cmd *cobra.Command, opt output.Options) {
+	out := output.New(os.Stdout, opt)
 
-func Version(version string) string {
-	if version != "" {
-		return version
-	}
-
-	if info, ok := readBuildInfo(); ok {
-		if info.Main.Version != "" && info.Main.Version != "(devel)" {
-			return info.Main.Version
-		}
-	}
-
-	return "dev"
+	c.out = out
+	c.color = out.Color()
+	c.crunner = runner.NewRunner(cmd.OutOrStdout(), cmd.ErrOrStderr())
 }
 
-func (c *Context) ApplyOptions(cmd *cobra.Command, opt output.Options) {
-	c.Color = output.NewColorizer(opt.NoColor)
-	c.Out = output.New(cmd.OutOrStdout(), opt)
-	c.Runner = runner.NewRunner(cmd.OutOrStdout(), cmd.ErrOrStderr())
+func (c *context) Color() output.Colorizer {
+	return c.color
+}
+
+func (c *context) Out() output.Context {
+	return c.out
+}
+
+func (c *context) Runner() runner.Runner {
+	return c.crunner
 }

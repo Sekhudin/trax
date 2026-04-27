@@ -10,7 +10,7 @@ import (
 	"github.com/sekhudin/trax/internal/output"
 )
 
-func newHandler(buf *bytes.Buffer) *Handler {
+func newHandler(buf *bytes.Buffer) Handler {
 	ctx := output.New(buf, output.Options{NoColor: true})
 	return New(ctx)
 }

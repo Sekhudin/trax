@@ -23,18 +23,23 @@ type Options struct {
 	NoColor bool
 }
 
-type Context struct {
+type Context interface {
+	Color() Colorizer
+
+	Success(scope, msg string)
+	Info(scope, msg string)
+	Warn(scope, msg string)
+	Error(scope, msg string)
+	Cause(scope, msg string)
+
+	AsFlat(prefix string, data map[string]any) error
+	AsJSON(data map[string]any) error
+}
+
+type context struct {
 	w     io.Writer
 	opt   Options
 	color Colorizer
-}
-
-func New(w io.Writer, opt Options) *Context {
-	return &Context{
-		w:     w,
-		opt:   opt,
-		color: *NewColorizer(opt.NoColor),
-	}
 }
 
 type notification struct {
@@ -43,7 +48,39 @@ type notification struct {
 	Message string `json:"message"`
 }
 
-func (c *Context) notify(level Level, scope, msg string) {
+func New(w io.Writer, opt Options) Context {
+	return &context{
+		w:     w,
+		opt:   opt,
+		color: NewColorizer(opt.NoColor),
+	}
+}
+
+func (c *context) Color() Colorizer {
+	return c.color
+}
+
+func (c *context) Success(scope, msg string) {
+	c.notify(LevelSuccess, scope, msg)
+}
+
+func (c *context) Info(scope, msg string) {
+	c.notify(LevelInfo, scope, msg)
+}
+
+func (c *context) Warn(scope, msg string) {
+	c.notify(LevelWarn, scope, msg)
+}
+
+func (c *context) Error(scope, msg string) {
+	c.notify(LevelError, scope, msg)
+}
+
+func (c *context) Cause(scope, msg string) {
+	c.notify(LevelCause, scope, msg)
+}
+
+func (c *context) notify(level Level, scope, msg string) {
 	if c.opt.Quiet {
 		return
 	}
@@ -56,7 +93,7 @@ func (c *Context) notify(level Level, scope, msg string) {
 	c.notifyText(level, scope, msg)
 }
 
-func (c *Context) notifyJSON(level Level, scope, msg string) {
+func (c *context) notifyJSON(level Level, scope, msg string) {
 	n := notification{
 		Level:   level.String(),
 		Scope:   scope,
@@ -72,14 +109,14 @@ func (c *Context) notifyJSON(level Level, scope, msg string) {
 	fmt.Fprintln(c.w, string(b))
 }
 
-func (c *Context) notifyText(level Level, scope, msg string) {
+func (c *context) notifyText(level Level, scope, msg string) {
 	icon := c.icon(level)
 	scope = c.colorScope(level, scope)
 
 	fmt.Fprintf(c.w, "%s (%s) %s\n", icon, scope, msg)
 }
 
-func (c *Context) icon(level Level) string {
+func (c *context) icon(level Level) string {
 	switch level {
 	case LevelSuccess:
 		return c.color.Green("✔")
@@ -94,7 +131,7 @@ func (c *Context) icon(level Level) string {
 	}
 }
 
-func (c *Context) colorScope(level Level, s string) string {
+func (c *context) colorScope(level Level, s string) string {
 	switch level {
 	case LevelSuccess:
 		return c.color.Green(s)
@@ -122,24 +159,4 @@ func (l Level) String() string {
 	default:
 		return "info"
 	}
-}
-
-func (c *Context) Success(scope, msg string) {
-	c.notify(LevelSuccess, scope, msg)
-}
-
-func (c *Context) Info(scope, msg string) {
-	c.notify(LevelInfo, scope, msg)
-}
-
-func (c *Context) Warn(scope, msg string) {
-	c.notify(LevelWarn, scope, msg)
-}
-
-func (c *Context) Error(scope, msg string) {
-	c.notify(LevelError, scope, msg)
-}
-
-func (c *Context) Cause(scope, msg string) {
-	c.notify(LevelCause, scope, msg)
 }

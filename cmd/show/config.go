@@ -8,10 +8,10 @@ import (
 )
 
 type showconfig struct {
-	ctx *app.Context
+	ctx app.Context
 }
 
-func NewConfigCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
+func NewConfigCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
 	s := showconfig{ctx: ctx}
 	cmd := doc.Apply(docs, &cobra.Command{
 		Args: cobra.NoArgs,
@@ -31,7 +31,7 @@ func NewConfigCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
 }
 
 func (s *showconfig) preRunE() error {
-	s.ctx.Out.Info("config", "show trax config\n")
+	s.ctx.Out().Info("config", "show trax config\n")
 
 	return nil
 }
@@ -44,8 +44,8 @@ func (s *showconfig) runE(cmd *cobra.Command) error {
 
 	settings := viper.AllSettings()
 	if asJSON {
-		return s.ctx.Out.AsJSON(settings)
+		return s.ctx.Out().AsJSON(settings)
 	}
 
-	return s.ctx.Out.AsFlat("", settings)
+	return s.ctx.Out().AsFlat("", settings)
 }

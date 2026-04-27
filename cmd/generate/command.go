@@ -45,7 +45,7 @@ func newDocs() *documentation {
 	}
 }
 
-func New(ctx *app.Context) *cobra.Command {
+func New(ctx app.Context) *cobra.Command {
 	docs := newDocs()
 	cmd := doc.Apply(&docs.root, &cobra.Command{
 		Args: cobra.ExactArgs(1),

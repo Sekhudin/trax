@@ -12,11 +12,11 @@ import (
 )
 
 type showroutes struct {
-	ctx *app.Context
+	ctx app.Context
 	cfg *routes.Config
 }
 
-func NewRoutesCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
+func NewRoutesCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
 	s := showroutes{ctx: ctx}
 	cmd := doc.Apply(docs, &cobra.Command{
 		Args: cobra.NoArgs,
@@ -57,7 +57,7 @@ func (s *showroutes) preRunE(cmd *cobra.Command) error {
 	}
 
 	s.setCfg(cfg)
-	s.ctx.Out.Info("routes", fmt.Sprintf("using %q strategy \n", cfg.Strategy))
+	s.ctx.Out().Info("routes", fmt.Sprintf("using %q strategy \n", cfg.Strategy))
 
 	return nil
 }
@@ -87,9 +87,9 @@ func (s *showroutes) runE(cmd *cobra.Command) error {
 	}
 
 	if asJSON {
-		s.ctx.Out.AsJSON(val)
+		s.ctx.Out().AsJSON(val)
 	} else {
-		s.ctx.Out.AsFlat("", val)
+		s.ctx.Out().AsFlat("", val)
 	}
 
 	return nil

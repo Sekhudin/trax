@@ -7,15 +7,20 @@ import (
 	"github.com/sekhudin/trax/internal/output"
 )
 
-type Handler struct {
-	out *output.Context
+type Handler interface {
+	Print(err error)
+	ExitCode(err error) int
 }
 
-func New(out *output.Context) *Handler {
-	return &Handler{out: out}
+type handler struct {
+	out output.Context
 }
 
-func (h *Handler) Print(err error) {
+func New(out output.Context) Handler {
+	return &handler{out: out}
+}
+
+func (h *handler) Print(err error) {
 	if err == nil {
 		return
 	}
@@ -29,7 +34,7 @@ func (h *Handler) Print(err error) {
 	h.out.Error("runtime", err.Error())
 }
 
-func (h *Handler) printCoreError(e *appErr.CoreError) {
+func (h *handler) printCoreError(e *appErr.CoreError) {
 	scope := e.Scope
 	if scope == "" {
 		scope = "core"
@@ -42,7 +47,7 @@ func (h *Handler) printCoreError(e *appErr.CoreError) {
 	}
 }
 
-func (h *Handler) ExitCode(err error) int {
+func (h *handler) ExitCode(err error) int {
 	var ce *appErr.CoreError
 	if errors.As(err, &ce) {
 		switch ce.Code {

@@ -8,8 +8,16 @@ import (
 	"testing"
 )
 
-func newCtx(buf *bytes.Buffer, opt Options) *Context {
+func newCtx(buf *bytes.Buffer, opt Options) Context {
 	return New(buf, opt)
+}
+
+func newCtxStruct(w *bytes.Buffer, opt Options) *context {
+	return &context{
+		w:     w,
+		opt:   opt,
+		color: NewColorizer(opt.NoColor),
+	}
 }
 
 func TestNotify_QuietMode(t *testing.T) {
@@ -72,7 +80,7 @@ func TestNotify_TextMode(t *testing.T) {
 }
 
 func TestIcon_ByLevel(t *testing.T) {
-	ctx := newCtx(bytes.NewBuffer(nil), Options{NoColor: true})
+	ctx := newCtxStruct(bytes.NewBuffer(nil), Options{NoColor: true})
 
 	tests := []struct {
 		level Level
@@ -94,7 +102,7 @@ func TestIcon_ByLevel(t *testing.T) {
 }
 
 func TestColorScope_ByLevel(t *testing.T) {
-	ctx := newCtx(bytes.NewBuffer(nil), Options{NoColor: true})
+	ctx := newCtxStruct(bytes.NewBuffer(nil), Options{NoColor: true})
 
 	tests := []struct {
 		level Level
@@ -111,6 +119,14 @@ func TestColorScope_ByLevel(t *testing.T) {
 		if out != "x" {
 			t.Fatal(out)
 		}
+	}
+}
+
+func TestColorContext(t *testing.T) {
+	ctx := newCtx(bytes.NewBuffer(nil), Options{NoColor: true})
+
+	if ctx.Color() == nil {
+		t.Fatal("expected color not nil")
 	}
 }
 
@@ -181,7 +197,7 @@ func TestNotifyJSON_SuccessPath_Explicit(t *testing.T) {
 
 func TestNotifyJSON_MarshalErrorPath_Fixed(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
-	ctx := newCtx(buf, Options{
+	ctx := newCtxStruct(buf, Options{
 		JSON:    true,
 		NoColor: true,
 	})
@@ -204,12 +220,12 @@ func (f failWriter) Write(p []byte) (int, error) {
 }
 
 func TestNotifyJSON_WriteErrorFallback(t *testing.T) {
-	ctx := &Context{
+	ctx := &context{
 		w: &failWriter{},
 		opt: Options{
 			JSON: true,
 		},
-		color: *NewColorizer(true),
+		color: NewColorizer(true),
 	}
 
 	ctx.notifyJSON(LevelInfo, "scope", "msg")

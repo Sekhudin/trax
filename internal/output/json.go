@@ -9,7 +9,7 @@ import (
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-func (c *Context) AsJSON(data map[string]any) error {
+func (c *context) AsJSON(data map[string]any) error {
 	normalized := c.normalizeMap(data)
 
 	b, err := json.MarshalIndent(normalized, "", "  ")
@@ -24,7 +24,7 @@ func (c *Context) AsJSON(data map[string]any) error {
 	return nil
 }
 
-func (c *Context) normalizeMap(m map[string]any) map[string]any {
+func (c *context) normalizeMap(m map[string]any) map[string]any {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -56,7 +56,7 @@ func (c *Context) normalizeMap(m map[string]any) map[string]any {
 	return out
 }
 
-func (c *Context) normalizeValue(v any) any {
+func (c *context) normalizeValue(v any) any {
 	switch val := v.(type) {
 	case map[string]any:
 		return c.normalizeMap(val)

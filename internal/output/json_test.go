@@ -17,8 +17,18 @@ func (e errWriter) Write(p []byte) (int, error) {
 	return 0, errors.New("write failed")
 }
 
-func newTestContext(w io.Writer) *Context {
+func newTestContext(w io.Writer) Context {
 	return New(w, Options{})
+}
+
+func newTestContextStruct(w io.Writer) *context {
+	opt := Options{}
+
+	return &context{
+		w:     w,
+		opt:   opt,
+		color: NewColorizer(opt.NoColor),
+	}
 }
 
 func TestAsJSON_Success(t *testing.T) {
@@ -86,7 +96,7 @@ func TestAsJSON_WriteError(t *testing.T) {
 }
 
 func TestNormalizeMap_SortingAndRecursion(t *testing.T) {
-	ctx := newTestContext(bytes.NewBuffer(nil))
+	ctx := newTestContextStruct(bytes.NewBuffer(nil))
 
 	in := map[string]any{
 		"b": 1,
@@ -108,7 +118,7 @@ func TestNormalizeMap_SortingAndRecursion(t *testing.T) {
 }
 
 func TestNormalizeValue_ArrayRecursion(t *testing.T) {
-	ctx := newTestContext(bytes.NewBuffer(nil))
+	ctx := newTestContextStruct(bytes.NewBuffer(nil))
 
 	in := []any{
 		map[string]any{"b": 2, "a": 1},

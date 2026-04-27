@@ -14,11 +14,11 @@ import (
 )
 
 type generateconfig struct {
-	ctx        *app.Context
+	ctx        app.Context
 	cfgFormats map[string]struct{}
 }
 
-func NewConfigCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
+func NewConfigCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
 	g := generateconfig{
 		ctx: ctx,
 		cfgFormats: map[string]struct{}{
@@ -72,7 +72,7 @@ func (g *generateconfig) runE(cmd *cobra.Command) error {
 		return appErr.NewConfigLoadError("config", fmt.Sprintf("failed generate config: %q", cfgFile), err)
 	}
 
-	g.ctx.Out.Success("routes", fmt.Sprintf("config written %s", g.ctx.Color.Green(cfgFile)))
+	g.ctx.Out().Success("routes", fmt.Sprintf("config written %s", g.ctx.Color().Green(cfgFile)))
 
 	return nil
 }

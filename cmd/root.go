@@ -18,7 +18,7 @@ import (
 )
 
 type trax struct {
-	ctx *app.Context
+	ctx app.Context
 }
 
 var Version = ""

@@ -2,7 +2,6 @@ package app
 
 import (
 	"bytes"
-	"runtime/debug"
 	"testing"
 
 	"github.com/sekhudin/trax/internal/output"
@@ -20,96 +19,16 @@ func TestNew_ContextInitialization(t *testing.T) {
 		t.Fatal("expected context, got nil")
 	}
 
-	if ctx.Color == nil {
+	if ctx.Color() == nil {
 		t.Fatal("expected Colorizer to be initialized")
 	}
 
-	if ctx.Out == nil {
+	if ctx.Out() == nil {
 		t.Fatal("expected Output Context to be initialized")
 	}
 
-	if ctx.Runner == nil {
+	if ctx.Runner() == nil {
 		t.Fatal("expected Runner to be initialized")
-	}
-}
-
-func TestVersion_ExplicitVersion(t *testing.T) {
-	got := Version("1.2.3")
-
-	if got != "1.2.3" {
-		t.Fatalf("expected 1.2.3, got %s", got)
-	}
-}
-
-func TestVersion_BuildInfo_ValidVersion(t *testing.T) {
-	old := readBuildInfo
-	defer func() { readBuildInfo = old }()
-
-	readBuildInfo = func() (*debug.BuildInfo, bool) {
-		return &debug.BuildInfo{
-			Main: debug.Module{
-				Version: "v1.0.0",
-			},
-		}, true
-	}
-
-	got := Version("")
-
-	if got != "v1.0.0" {
-		t.Fatalf("expected v1.0.0, got %s", got)
-	}
-}
-
-func TestVersion_BuildInfo_EmptyVersion(t *testing.T) {
-	old := readBuildInfo
-	defer func() { readBuildInfo = old }()
-
-	readBuildInfo = func() (*debug.BuildInfo, bool) {
-		return &debug.BuildInfo{
-			Main: debug.Module{
-				Version: "",
-			},
-		}, true
-	}
-
-	got := Version("")
-
-	if got != "dev" {
-		t.Fatalf("expected dev, got %s", got)
-	}
-}
-
-func TestVersion_BuildInfo_DevelVersion(t *testing.T) {
-	old := readBuildInfo
-	defer func() { readBuildInfo = old }()
-
-	readBuildInfo = func() (*debug.BuildInfo, bool) {
-		return &debug.BuildInfo{
-			Main: debug.Module{
-				Version: "(devel)",
-			},
-		}, true
-	}
-
-	got := Version("")
-
-	if got != "dev" {
-		t.Fatalf("expected dev, got %s", got)
-	}
-}
-
-func TestVersion_BuildInfo_NotAvailable(t *testing.T) {
-	old := readBuildInfo
-	defer func() { readBuildInfo = old }()
-
-	readBuildInfo = func() (*debug.BuildInfo, bool) {
-		return nil, false
-	}
-
-	got := Version("")
-
-	if got != "dev" {
-		t.Fatalf("expected dev, got %s", got)
 	}
 }
 
@@ -126,15 +45,15 @@ func TestApplyOptions_BasicUpdate(t *testing.T) {
 
 	ctx.ApplyOptions(cmd, opt)
 
-	if ctx.Color == nil {
+	if ctx.Color() == nil {
 		t.Fatal("color should not be nil")
 	}
 
-	if ctx.Out == nil {
+	if ctx.Out() == nil {
 		t.Fatal("out should not be nil")
 	}
 
-	if ctx.Runner == nil {
+	if ctx.Runner() == nil {
 		t.Fatal("runner should not be nil")
 	}
 }
@@ -155,7 +74,7 @@ func TestApplyOptions_WritersPropagation(t *testing.T) {
 
 	ctx.ApplyOptions(cmd, opt)
 
-	if ctx.Out == nil {
+	if ctx.Out() == nil {
 		t.Fatal("expected Out to be set")
 	}
 }
@@ -183,14 +102,14 @@ func TestContext_FullFlow(t *testing.T) {
 
 	ctx := New(opt)
 
-	if ctx.Color == nil || ctx.Out == nil || ctx.Runner == nil {
+	if ctx.Color() == nil || ctx.Out() == nil || ctx.Runner() == nil {
 		t.Fatal("invalid initial context")
 	}
 
 	cmd := &cobra.Command{}
 	ctx.ApplyOptions(cmd, opt)
 
-	if ctx.Out == nil {
+	if ctx.Out() == nil {
 		t.Fatal("Out should still be valid after ApplyOptions")
 	}
 }

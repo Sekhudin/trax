@@ -13,11 +13,11 @@ import (
 )
 
 type generateroutes struct {
-	ctx *app.Context
+	ctx app.Context
 	cfg *routes.Config
 }
 
-func NewRoutesCmd(docs *doc.Docs, ctx *app.Context) *cobra.Command {
+func NewRoutesCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
 	g := generateroutes{ctx: ctx}
 	cmd := doc.Apply(docs, &cobra.Command{
 		Args: cobra.NoArgs,
@@ -66,7 +66,7 @@ func (g *generateroutes) preRunE(cmd *cobra.Command) error {
 	}
 
 	g.setCfg(cfg)
-	g.ctx.Out.Info("routes", fmt.Sprintf("using %q strategy (no-deps: %v)\n", g.cfg.Strategy, g.ctx.Color.Blue(g.cfg.NoDeps)))
+	g.ctx.Out().Info("routes", fmt.Sprintf("using %q strategy (no-deps: %v)\n", g.cfg.Strategy, g.ctx.Color().Blue(g.cfg.NoDeps)))
 
 	return nil
 }
@@ -101,12 +101,12 @@ func (g *generateroutes) postRunE(cmd *cobra.Command) error {
 		f := viper.GetString("formatter")
 		sf := viper.GetStringMap(fmt.Sprintf("formatters.%s", f))
 
-		if err := g.ctx.Runner.Run(sf); err != nil {
+		if err := g.ctx.Runner().Run(sf); err != nil {
 			return err
 		}
 	}
 
-	g.ctx.Out.Success("routes", fmt.Sprintf("routes written %s", g.ctx.Color.Green(g.cfg.Output.Filename)))
+	g.ctx.Out().Success("routes", fmt.Sprintf("routes written %s", g.ctx.Color().Green(g.cfg.Output.Filename)))
 
 	return nil
 }
