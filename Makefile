@@ -3,6 +3,7 @@ VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 MODULE_PATH=github.com/Sekhudin/trax/cmd
 LDFLAGS=-ldflags "-X $(MODULE_PATH).Version=$(VERSION)"
 
+PACKAGES := $(shell go list ./... | grep -v /internal/testutil)
 MIN_COV=90
 
 .PHONY: all build test clean run install help
@@ -17,10 +18,14 @@ build: ## Build the Trax binary with version injection
 
 test: ## Run all unit tests
 	@echo "Running tests..."
-	@go test -v ./...
+	@go test -v $(PACKAGES)
 
 cov: ## Run all unit tests with coverage
-	@go test -cover ./... -coverprofile=coverage.out
+	@go test -cover $(PACKAGES) -coverprofile=coverage.out
+	@go tool cover -func=coverage.out
+
+covv: ## Run all unit tests with coverage (verbose)
+	@go test -v -cover $(PACKAGES) -coverprofile=coverage.out
 	@go tool cover -func=coverage.out
 
 covc: cov ## Check if coverage is above ($(MIN_COV)%)
