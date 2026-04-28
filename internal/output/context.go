@@ -24,8 +24,6 @@ type Options struct {
 }
 
 type Context interface {
-	Color() Colorizer
-
 	Success(scope, msg string)
 	Info(scope, msg string)
 	Warn(scope, msg string)
@@ -54,10 +52,6 @@ func New(w io.Writer, opt Options) Context {
 		opt:   opt,
 		color: NewColorizer(opt.NoColor),
 	}
-}
-
-func (c *context) Color() Colorizer {
-	return c.color
 }
 
 func (c *context) Success(scope, msg string) {

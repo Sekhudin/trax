@@ -122,14 +122,6 @@ func TestColorScope_ByLevel(t *testing.T) {
 	}
 }
 
-func TestColorContext(t *testing.T) {
-	ctx := newCtx(bytes.NewBuffer(nil), Options{NoColor: true})
-
-	if ctx.Color() == nil {
-		t.Fatal("expected color not nil")
-	}
-}
-
 func TestLevelString(t *testing.T) {
 	tests := []struct {
 		level Level
