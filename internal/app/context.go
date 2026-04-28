@@ -23,20 +23,16 @@ type context struct {
 }
 
 func New(opt output.Options) Context {
-	out := output.New(os.Stdout, opt)
-
 	return &context{
-		out:     out,
-		color:   out.Color(),
+		out:     output.New(os.Stdout, opt),
+		color:   output.NewColorizer(opt.NoColor),
 		crunner: runner.NewRunner(os.Stdout, os.Stderr),
 	}
 }
 
 func (c *context) ApplyOptions(cmd *cobra.Command, opt output.Options) {
-	out := output.New(os.Stdout, opt)
-
-	c.out = out
-	c.color = out.Color()
+	c.out = output.New(os.Stdout, opt)
+	c.color = output.NewColorizer(opt.NoColor)
 	c.crunner = runner.NewRunner(cmd.OutOrStdout(), cmd.ErrOrStderr())
 }
 
