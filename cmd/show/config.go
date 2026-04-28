@@ -7,20 +7,24 @@ import (
 	"github.com/spf13/viper"
 )
 
-type showconfig struct {
+type ConfigCtx interface {
+	PreRunE() error
+	RunE(cmd *cobra.Command) error
+}
+
+type configctx struct {
 	ctx app.Context
 }
 
-func NewConfigCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
-	s := showconfig{ctx: ctx}
+func NewConfigCmd(docs *doc.Docs, c ConfigCtx) *cobra.Command {
 	cmd := doc.Apply(docs, &cobra.Command{
 		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return s.preRunE()
+			return c.PreRunE()
 		},
 
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return s.runE(cmd)
+			return c.RunE(cmd)
 		},
 	})
 
@@ -30,13 +34,19 @@ func NewConfigCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
 	return cmd
 }
 
-func (s *showconfig) preRunE() error {
-	s.ctx.Out().Info("config", "show trax config\n")
+func NewConfigCtx(ctx app.Context) ConfigCtx {
+	return &configctx{
+		ctx: ctx,
+	}
+}
+
+func (c *configctx) PreRunE() error {
+	c.ctx.Out().Info("config", "show trax config\n")
 
 	return nil
 }
 
-func (s *showconfig) runE(cmd *cobra.Command) error {
+func (c *configctx) RunE(cmd *cobra.Command) error {
 	asJSON, err := cmd.Flags().GetBool("json")
 	if err != nil {
 		return err
@@ -44,8 +54,8 @@ func (s *showconfig) runE(cmd *cobra.Command) error {
 
 	settings := viper.AllSettings()
 	if asJSON {
-		return s.ctx.Out().AsJSON(settings)
+		return c.ctx.Out().AsJSON(settings)
 	}
 
-	return s.ctx.Out().AsFlat("", settings)
+	return c.ctx.Out().AsFlat("", settings)
 }
