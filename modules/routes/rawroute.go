@@ -8,29 +8,29 @@ import (
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-type routefile struct {
-	Routes []rawroute `mapstructure:"routes"`
+type RawRouteFile struct {
+	Routes []RawRoute `mapstructure:"routes"`
 }
 
-type rawroute struct {
+type RawRoute struct {
 	Name string `mapstructure:"name"`
 	Path string `mapstructure:"path"`
 }
 
-type rawroutebuilderItf interface {
-	build() ([]rawroute, error)
+type RawRouteBuilder interface {
+	Build() ([]RawRoute, error)
 }
 
-type rawroutebuilder struct {
+type rawroute struct {
 	cfg *Config
 }
 
-func newRawRouteBuilder(cfg *Config) rawroutebuilderItf {
-	return &rawroutebuilder{cfg: cfg}
+func NewRawRouteBuilder(cfg *Config) RawRouteBuilder {
+	return &rawroute{cfg: cfg}
 }
 
-func (b *rawroutebuilder) build() ([]rawroute, error) {
-	var reader func() ([]rawroute, error)
+func (b *rawroute) Build() ([]RawRoute, error) {
+	var reader func() ([]RawRoute, error)
 
 	if b.cfg.IsFileStrategy {
 		reader = b.readFile
@@ -46,7 +46,7 @@ func (b *rawroutebuilder) build() ([]rawroute, error) {
 	return rws, nil
 }
 
-func (b *rawroutebuilder) readFile() ([]rawroute, error) {
+func (b *rawroute) readFile() ([]RawRoute, error) {
 	v := viper.New()
 
 	v.SetConfigFile(b.cfg.File.Full)
@@ -55,7 +55,7 @@ func (b *rawroutebuilder) readFile() ([]rawroute, error) {
 		return nil, err
 	}
 
-	var rf routefile
+	var rf RawRouteFile
 
 	if err := v.Unmarshal(&rf); err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func (b *rawroutebuilder) readFile() ([]rawroute, error) {
 	return rf.Routes, nil
 }
 
-func (b *rawroutebuilder) readDisc() ([]rawroute, error) {
+func (b *rawroute) readDisc() ([]RawRoute, error) {
 	nextApp := newNextApp()
 	nextPage := newNextPage()
 

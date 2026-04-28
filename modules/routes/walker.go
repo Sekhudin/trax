@@ -33,8 +33,8 @@ type walker struct {
 	rule     *walkrule
 }
 
-func (w *walker) walk() ([]rawroute, error) {
-	var rs []rawroute
+func (w *walker) walk() ([]RawRoute, error) {
+	var rs []RawRoute
 
 	c := *w.config
 	ws := w.strategy
@@ -67,7 +67,7 @@ func (w *walker) walk() ([]rawroute, error) {
 
 		path := w.buildPath(segs)
 
-		rs = append(rs, rawroute{Name: name, Path: path})
+		rs = append(rs, RawRoute{Name: name, Path: path})
 
 		return nil
 	})

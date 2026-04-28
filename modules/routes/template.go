@@ -15,8 +15,8 @@ type Template interface {
 }
 
 type TemplateDeps struct {
-	Routes   []route
-	Selector treeselector
+	Routes   []Route
+	Selector TreeSelector
 	Cfg      *Config
 }
 
@@ -127,7 +127,7 @@ func (*template) tSearchParams() string {
 func (t *template) tRoutePattern() string {
 	r := make([]string, 0, len(t.deps.Routes))
 	for _, p := range t.deps.Routes {
-		r = append(r, p.path)
+		r = append(r, p.Path)
 	}
 
 	var b strings.Builder

@@ -72,7 +72,7 @@ routes:
 				fp = writeFile(t, tt.content)
 			}
 
-			b := rawroutebuilder{
+			b := rawroute{
 				cfg: fileCfg(fp),
 			}
 
@@ -98,9 +98,9 @@ routes:
   - name: users
     path: /users
 `)
-	b := newRawRouteBuilder(fileCfg(fp))
+	b := NewRawRouteBuilder(fileCfg(fp))
 
-	rws, err := b.build()
+	rws, err := b.Build()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ routes:
 }
 
 func TestReadDisc_InvalidStrategy(t *testing.T) {
-	b := rawroutebuilder{
+	b := rawroute{
 		cfg: &Config{
 			IsFileStrategy: false,
 			Strategy:       "invalid",
@@ -134,9 +134,9 @@ func TestBuild_ReadDisc_WalkerError(t *testing.T) {
 				Root:           "/definitely/not/exist",
 			}
 
-			b := newRawRouteBuilder(cfg)
+			b := NewRawRouteBuilder(cfg)
 
-			_, err := b.build()
+			_, err := b.Build()
 			if err == nil {
 				t.Fatal("expected walker error")
 			}

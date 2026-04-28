@@ -13,7 +13,7 @@ import (
 type RoutesConfig interface {
 	Load() (*Config, error)
 	IsFileStrategy() bool
-	IsValidStartegy() bool
+	IsValidStrategy() bool
 }
 
 type Config struct {
@@ -55,7 +55,7 @@ func (c *rconfig) Load() (*Config, error) {
 		return nil, appErr.NewValidationError("strategy", msg)
 	}
 
-	if !c.IsValidStartegy() {
+	if !c.IsValidStrategy() {
 		msg := fmt.Sprintf("strategy: %q invalid, allowed: %s",
 			c.cfg.Strategy, "file, next-app or next-page")
 
@@ -104,7 +104,7 @@ func (c *rconfig) IsFileStrategy() bool {
 	return c.cfg.Strategy == "file"
 }
 
-func (c *rconfig) IsValidStartegy() bool {
+func (c *rconfig) IsValidStrategy() bool {
 	_, ok := c.rule.strategies[c.cfg.Strategy]
 	return ok
 }

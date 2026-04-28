@@ -1,56 +1,94 @@
 package routes
 
-type finalroute struct {
-	Raw      []rawroute
-	Routes   []route
-	Tree     map[string]*node
-	Selector treeselector
+type Builder interface {
+	Build() (BuildResult, error)
+}
+
+type BuildResult interface {
+	Raw() []RawRoute
+	Routes() []Route
+	Tree() map[string]*Node
+	Selector() TreeSelector
+	Select(key string) (map[string]any, error)
+}
+
+type Routes struct {
+	Raw      []RawRoute
+	Routes   []Route
+	Tree     map[string]*Node
+	Selector TreeSelector
 }
 
 type builderdeps struct {
-	raw   rawroutebuilderItf
-	route routebuilderItf
-	tree  treebuilderItf
+	Raw   RawRouteBuilder
+	Route RouteBuilder
+	Tree  TreeBuilder
 }
 
 type builder struct {
-	deps builderdeps
+	Deps builderdeps
 }
 
-type Builder interface {
-	Build() (*finalroute, error)
+type buildresult struct {
+	Result *Routes
 }
 
 func NewBuilder(cfg *Config) Builder {
 	return &builder{
-		deps: builderdeps{
-			raw:   newRawRouteBuilder(cfg),
-			route: newRouteBuilder(cfg),
-			tree:  newTreeBuilder(cfg),
+		Deps: builderdeps{
+			Raw:   NewRawRouteBuilder(cfg),
+			Route: NewRouteBuilder(cfg),
+			Tree:  NewTreeBuilder(cfg),
 		},
 	}
 }
 
-func (b *builder) Build() (*finalroute, error) {
-	rws, err := b.deps.raw.build()
+func (b *builder) Build() (BuildResult, error) {
+	rws, err := b.Deps.Raw.Build()
 	if err != nil {
 		return nil, err
 	}
 
-	rs, err := b.deps.route.build(rws)
+	rs, err := b.Deps.Route.Build(rws)
 	if err != nil {
 		return nil, err
 	}
 
-	tr, trs, err := b.deps.tree.build(rs)
+	tr, trs, err := b.Deps.Tree.Build(rs)
 	if err != nil {
 		return nil, err
 	}
 
-	return &finalroute{
-		Raw:      rws,
-		Routes:   rs,
-		Tree:     tr,
-		Selector: trs,
+	return &buildresult{
+		Result: &Routes{
+			Raw:      rws,
+			Routes:   rs,
+			Tree:     tr,
+			Selector: trs,
+		},
 	}, nil
+}
+
+func (r *buildresult) Raw() []RawRoute {
+	return r.Result.Raw
+}
+
+func (r *buildresult) Routes() []Route {
+	return r.Result.Routes
+}
+
+func (r *buildresult) Tree() map[string]*Node {
+	return r.Result.Tree
+}
+
+func (r *buildresult) Selector() TreeSelector {
+	return r.Result.Selector
+}
+
+func (r *buildresult) Select(key string) (map[string]any, error) {
+	res, err := r.Result.Selector(key)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }

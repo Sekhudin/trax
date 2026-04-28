@@ -12,22 +12,22 @@ import (
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-type treeselector func(selector string) (map[string]any, error)
+type TreeSelector func(selector string) (map[string]any, error)
 
-type treebuilderItf interface {
-	build([]route) (map[string]*node, treeselector, error)
+type TreeBuilder interface {
+	Build([]Route) (map[string]*Node, TreeSelector, error)
 }
 
-type treebuilder struct {
+type tree struct {
 	cfg *Config
 }
 
-func newTreeBuilder(cfg *Config) treebuilderItf {
-	return &treebuilder{cfg: cfg}
+func NewTreeBuilder(cfg *Config) TreeBuilder {
+	return &tree{cfg: cfg}
 }
 
-func (b *treebuilder) build(rs []route) (map[string]*node, treeselector, error) {
-	tr := make(map[string]*node)
+func (b *tree) Build(rs []Route) (map[string]*Node, TreeSelector, error) {
+	tr := make(map[string]*Node)
 
 	for _, r := range rs {
 		if err := b.insert(r, tr); err != nil {
@@ -40,7 +40,7 @@ func (b *treebuilder) build(rs []route) (map[string]*node, treeselector, error) 
 	return tr, trs, nil
 }
 
-func (b *treebuilder) createSelector(tr map[string]any) treeselector {
+func (b *tree) createSelector(tr map[string]any) TreeSelector {
 	v := viper.New()
 
 	v.SetDefault(b.cfg.Prefix, tr[b.cfg.Prefix])
@@ -83,7 +83,7 @@ func (b *treebuilder) createSelector(tr map[string]any) treeselector {
 	}
 }
 
-func (b *treebuilder) toMap(nds map[string]*node) map[string]any {
+func (b *tree) toMap(nds map[string]*Node) map[string]any {
 	keys := make([]string, 0, len(nds))
 	for k := range nds {
 		keys = append(keys, k)
@@ -101,12 +101,12 @@ func (b *treebuilder) toMap(nds map[string]*node) map[string]any {
 
 		m := make(map[string]any)
 
-		if n.root != "" {
-			m[b.cfg.Symbols.Root] = n.root
+		if n.Root != "" {
+			m[b.cfg.Symbols.Root] = n.Root
 		}
 
-		if len(n.children) > 0 {
-			maps.Copy(m, b.toMap(n.children))
+		if len(n.Children) > 0 {
+			maps.Copy(m, b.toMap(n.Children))
 		}
 
 		result[k] = m
@@ -115,44 +115,44 @@ func (b *treebuilder) toMap(nds map[string]*node) map[string]any {
 	return result
 }
 
-func (b *treebuilder) insert(r route, current map[string]*node) error {
-	for i, part := range r.parts {
-		key, kind, err := b.normalizePart(r, part)
+func (b *tree) insert(r Route, current map[string]*Node) error {
+	for i, part := range r.Parts {
+		key, Kind, err := b.normalizePart(r, part)
 		if err != nil {
 			return err
 		}
 
 		nd, ok := current[key]
 		if !ok {
-			if err := b.validateChild(r, current, kind); err != nil {
+			if err := b.validateChild(r, current, Kind); err != nil {
 				return err
 			}
-			nd = &node{
-				children: make(map[string]*node),
-				kind:     kind,
-				segment:  part,
+			nd = &Node{
+				Children: make(map[string]*Node),
+				Kind:     Kind,
+				Segment:  part,
 			}
 			current[key] = nd
-		} else if nd.segment != part {
-			msg := fmt.Sprintf("conflicting segment %q and %q produce same key", nd.segment, part)
+		} else if nd.Segment != part {
+			msg := fmt.Sprintf("conflicting segment %q and %q produce same key", nd.Segment, part)
 			return appErr.NewValidationError("path", msg)
 		}
 
-		if i == len(r.parts)-1 {
-			if nd.root != "" && nd.root != r.path {
-				msg := fmt.Sprintf("%q duplicate route detected: %q vs %q", r.name, nd.root, r.path)
+		if i == len(r.Parts)-1 {
+			if nd.Root != "" && nd.Root != r.Path {
+				msg := fmt.Sprintf("%q duplicate route detected: %q vs %q", r.Name, nd.Root, r.Path)
 				return appErr.NewValidationError("path", msg)
 			}
-			nd.root = r.path
+			nd.Root = r.Path
 		}
 
-		current = nd.children
+		current = nd.Children
 	}
 
 	return nil
 }
 
-func (b *treebuilder) normalizePart(r route, part string) (string, string, error) {
+func (b *tree) normalizePart(r Route, part string) (string, string, error) {
 	identPattern := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 	staticPattern := regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
@@ -162,7 +162,7 @@ func (b *treebuilder) normalizePart(r route, part string) (string, string, error
 
 	if cut, found := strings.CutPrefix(part, ":"); found {
 		if !identPattern.MatchString(cut) {
-			msg := fmt.Sprintf("%q invalid param name: %s", r.name, cut)
+			msg := fmt.Sprintf("%q invalid param name: %s", r.Name, cut)
 
 			return "", "", appErr.NewValidationError("path", msg)
 		}
@@ -170,48 +170,48 @@ func (b *treebuilder) normalizePart(r route, part string) (string, string, error
 	}
 
 	if !staticPattern.MatchString(part) {
-		msg := fmt.Sprintf("%q invalid path segment: %s", r.name, part)
+		msg := fmt.Sprintf("%q invalid path segment: %s", r.Name, part)
 
 		return "", "", appErr.NewValidationError("path", msg)
 	}
 
 	if strings.Contains(part, "-") {
-		parts := strings.Split(part, "-")
-		for i := 1; i < len(parts); i++ {
-			if len(parts[i]) > 0 {
-				parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+		Parts := strings.Split(part, "-")
+		for i := 1; i < len(Parts); i++ {
+			if len(Parts[i]) > 0 {
+				Parts[i] = strings.ToUpper(Parts[i][:1]) + Parts[i][1:]
 			}
 		}
-		return strings.Join(parts, ""), "static", nil
+		return strings.Join(Parts, ""), "static", nil
 	}
 
 	return part, "static", nil
 }
 
-func (b *treebuilder) validateChild(r route, current map[string]*node, kind string) error {
+func (b *tree) validateChild(r Route, current map[string]*Node, kind string) error {
 	for _, c := range current {
-		if kind == "wildcard" || c.kind == "wildcard" {
-			msg := fmt.Sprintf("%q path wildcard route cannot coexist with other routes at the same level", r.name)
+		if kind == "wildcard" || c.Kind == "wildcard" {
+			msg := fmt.Sprintf("%q path wildcard route cannot coexist with other routes at the same level", r.Name)
 
 			return appErr.NewValidationError("path", msg)
 		}
 
-		if kind == "param" && c.kind == "static" {
-			msg := fmt.Sprintf("%q path param route conflicts with existing static route", r.name)
-
-			return appErr.NewValidationError("path", msg)
-
-		}
-
-		if kind == "static" && c.kind == "param" {
-			msg := fmt.Sprintf("%q path static route conflicts with existing param route", r.name)
+		if kind == "param" && c.Kind == "static" {
+			msg := fmt.Sprintf("%q path param route conflicts with existing static route", r.Name)
 
 			return appErr.NewValidationError("path", msg)
 
 		}
 
-		if kind == "param" && c.kind == "param" {
-			msg := fmt.Sprintf("%q path multiple param routes at the same level are not allowed", r.name)
+		if kind == "static" && c.Kind == "param" {
+			msg := fmt.Sprintf("%q path static route conflicts with existing param route", r.Name)
+
+			return appErr.NewValidationError("path", msg)
+
+		}
+
+		if kind == "param" && c.Kind == "param" {
+			msg := fmt.Sprintf("%q path multiple param routes at the same level are not allowed", r.Name)
 
 			return appErr.NewValidationError("path", msg)
 		}

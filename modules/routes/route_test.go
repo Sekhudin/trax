@@ -5,39 +5,39 @@ import (
 )
 
 func TestCleanPath_AllBranches(t *testing.T) {
-	b := routebuilder{
+	b := route{
 		cfg: &Config{},
 	}
 
 	tests := []struct {
 		name    string
-		rw      rawroute
+		rw      RawRoute
 		wantErr bool
 		want    string
 	}{
 		{
 			name:    "no leading slash",
-			rw:      rawroute{Name: "a", Path: "users"},
+			rw:      RawRoute{Name: "a", Path: "users"},
 			wantErr: true,
 		},
 		{
 			name:    "double slash",
-			rw:      rawroute{Name: "a", Path: "/users//list"},
+			rw:      RawRoute{Name: "a", Path: "/users//list"},
 			wantErr: true,
 		},
 		{
 			name: "with query trimmed",
-			rw:   rawroute{Name: "a", Path: "/users?id=1"},
+			rw:   RawRoute{Name: "a", Path: "/users?id=1"},
 			want: "/users",
 		},
 		{
 			name: "trailing slash trimmed",
-			rw:   rawroute{Name: "a", Path: "/users/"},
+			rw:   RawRoute{Name: "a", Path: "/users/"},
 			want: "/users",
 		},
 		{
 			name: "root path stays",
-			rw:   rawroute{Name: "a", Path: "/"},
+			rw:   RawRoute{Name: "a", Path: "/"},
 			want: "/",
 		},
 	}
@@ -61,13 +61,13 @@ func TestCleanPath_AllBranches(t *testing.T) {
 }
 
 func TestSplitPath_WithAndWithoutPrefix(t *testing.T) {
-	b := routebuilder{
+	b := route{
 		cfg: &Config{
 			Prefix: "/api",
 		},
 	}
 
-	rw := rawroute{Path: "/users/list"}
+	rw := RawRoute{Path: "/users/list"}
 	parts := b.splitPath(rw)
 
 	if len(parts) != 3 {
@@ -82,7 +82,7 @@ func TestSplitPath_WithAndWithoutPrefix(t *testing.T) {
 }
 
 func TestValidateParts_AllBranches(t *testing.T) {
-	b := routebuilder{
+	b := route{
 		cfg: &Config{},
 	}
 
@@ -115,7 +115,7 @@ func TestValidateParts_AllBranches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := b.validateParts(rawroute{Name: "a"}, tt.parts)
+			err := b.validateParts(RawRoute{Name: "a"}, tt.parts)
 			if tt.wantErr && err == nil {
 				t.Fatal("expected error")
 			}
@@ -127,32 +127,32 @@ func TestValidateParts_AllBranches(t *testing.T) {
 }
 
 func TestBuild_AllBranches(t *testing.T) {
-	b := newRouteBuilder(&Config{})
+	b := NewRouteBuilder(&Config{})
 
-	rws := []rawroute{
+	rws := []RawRoute{
 		{Name: "ok", Path: "/users"},
 		{Name: "bad", Path: "no-slash"},
 	}
 
-	_, err := b.build(rws)
+	_, err := b.Build(rws)
 	if err == nil {
 		t.Fatal("expected error from cleanPath")
 	}
 
-	rws = []rawroute{
+	rws = []RawRoute{
 		{Name: "ok", Path: "/users/*/list"},
 	}
 
-	_, err = b.build(rws)
+	_, err = b.Build(rws)
 	if err == nil {
 		t.Fatal("expected error from validateParts")
 	}
 
-	rws = []rawroute{
+	rws = []RawRoute{
 		{Name: "ok", Path: "/users"},
 	}
 
-	rs, err := b.build(rws)
+	rs, err := b.Build(rws)
 	if err != nil {
 		t.Fatal(err)
 	}

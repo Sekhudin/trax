@@ -239,12 +239,12 @@ func TestIsValidStrategy(t *testing.T) {
 		},
 	}
 
-	if !r.IsValidStartegy() {
+	if !r.IsValidStrategy() {
 		t.Fatal("valid strategy not detected")
 	}
 
 	r.cfg.Strategy = "unknown"
-	if r.IsValidStartegy() {
+	if r.IsValidStrategy() {
 		t.Fatal("invalid strategy detected as valid")
 	}
 }

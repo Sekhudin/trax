@@ -36,7 +36,7 @@ func testConfigJSNoDeps() *Config {
 	}
 }
 
-func mockSelectorOK() treeselector {
+func mockSelectorOK() TreeSelector {
 	return func(_ string) (map[string]any, error) {
 		return map[string]any{
 			"api": map[string]any{
@@ -49,13 +49,13 @@ func mockSelectorOK() treeselector {
 	}
 }
 
-func mockSelectorError() treeselector {
+func mockSelectorError() TreeSelector {
 	return func(_ string) (map[string]any, error) {
 		return nil, errors.New("selector failed")
 	}
 }
 
-func newTpl(cfg *Config, sel treeselector, routes []route) *template {
+func newTpl(cfg *Config, sel TreeSelector, routes []Route) *template {
 	return &template{
 		deps: TemplateDeps{
 			Cfg:      cfg,
@@ -70,7 +70,7 @@ func TestNewTemplate(t *testing.T) {
 
 	deps := TemplateDeps{
 		Cfg:      cfg,
-		Routes:   []route{{path: "/test"}},
+		Routes:   []Route{{Path: "/test"}},
 		Selector: mockSelectorOK(),
 	}
 
@@ -88,9 +88,9 @@ func TestNewTemplate(t *testing.T) {
 func TestRoutesTpl_Build_TS_Mode(t *testing.T) {
 	cfg := testConfigTS()
 
-	tpl := newTpl(cfg, mockSelectorOK(), []route{
-		{path: "/users"},
-		{path: "/posts/:id"},
+	tpl := newTpl(cfg, mockSelectorOK(), []Route{
+		{Path: "/users"},
+		{Path: "/posts/:id"},
 	})
 
 	out, err := tpl.Build()
@@ -106,8 +106,8 @@ func TestRoutesTpl_Build_TS_Mode(t *testing.T) {
 func TestRoutesTpl_Build_JS_NoDeps(t *testing.T) {
 	cfg := testConfigJSNoDeps()
 
-	tpl := newTpl(cfg, mockSelectorOK(), []route{
-		{path: "/users"},
+	tpl := newTpl(cfg, mockSelectorOK(), []Route{
+		{Path: "/users"},
 	})
 
 	out, err := tpl.Build()
@@ -123,7 +123,7 @@ func TestRoutesTpl_Build_JS_NoDeps(t *testing.T) {
 func TestRoutesTpl_Build_SelectorError(t *testing.T) {
 	cfg := testConfigTS()
 
-	tpl := newTpl(cfg, mockSelectorError(), []route{})
+	tpl := newTpl(cfg, mockSelectorError(), []Route{})
 
 	out, err := tpl.Build()
 	if err == nil {
@@ -190,9 +190,9 @@ func TestRoutesTpl_ImportDeps_NoDeps(t *testing.T) {
 func TestRoutesTpl_RoutePattern(t *testing.T) {
 	cfg := testConfigTS()
 
-	tpl := newTpl(cfg, mockSelectorOK(), []route{
-		{path: "/a"},
-		{path: "/b"},
+	tpl := newTpl(cfg, mockSelectorOK(), []Route{
+		{Path: "/a"},
+		{Path: "/b"},
 	})
 
 	out := tpl.tRoutePattern()
@@ -345,8 +345,8 @@ func TestTemplate_rTreeJSON_MarshalError(t *testing.T) {
 func TestRoutesTpl_RoutesJSON(t *testing.T) {
 	cfg := testConfigTS()
 
-	tpl := newTpl(cfg, mockSelectorOK(), []route{
-		{path: "/users"},
+	tpl := newTpl(cfg, mockSelectorOK(), []Route{
+		{Path: "/users"},
 	})
 
 	out, err := tpl.rRoutesJSON()

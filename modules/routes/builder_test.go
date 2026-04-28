@@ -7,32 +7,44 @@ import (
 	"github.com/sekhudin/trax/internal/path"
 )
 
-type mockRaw struct {
-	err error
+type mockRawBuilder struct {
+	BuildCalled bool
+	BuildFn     func() ([]RawRoute, error)
 }
 
-func (m mockRaw) build() ([]rawroute, error) {
-	return []rawroute{{}}, m.err
+func (b *mockRawBuilder) Build() ([]RawRoute, error) {
+	b.BuildCalled = true
+	if b.BuildFn != nil {
+		return b.BuildFn()
+	}
+	return []RawRoute{}, nil
 }
 
-type mockRoute struct {
-	err error
+type mockRouteBuilder struct {
+	BuildCalled bool
+	BuildFn     func() ([]Route, error)
 }
 
-func (m mockRoute) build([]rawroute) ([]route, error) {
-	return []route{{}}, m.err
+func (b *mockRouteBuilder) Build(r []RawRoute) ([]Route, error) {
+	b.BuildCalled = true
+	if b.BuildFn != nil {
+		return b.BuildFn()
+	}
+	return []Route{}, nil
 }
 
-type mockTree struct {
-	err error
+type mockTreeBuilder struct {
+	BuildCalled bool
+	BuildFn     func() (map[string]*Node, TreeSelector, error)
 }
 
-func (m mockTree) build([]route) (map[string]*node, treeselector, error) {
-	if m.err != nil {
-		return nil, nil, m.err
+func (b *mockTreeBuilder) Build(r []Route) (map[string]*Node, TreeSelector, error) {
+	b.BuildCalled = true
+	if b.BuildFn != nil {
+		return b.BuildFn()
 	}
 
-	return map[string]*node{"x": {}}, func(string) (map[string]any, error) {
+	return map[string]*Node{}, func(selector string) (map[string]any, error) {
 		return map[string]any{}, nil
 	}, nil
 }
@@ -49,10 +61,19 @@ func cfg() *Config {
 
 func TestBuilder_Build_Success(t *testing.T) {
 	b := &builder{
-		deps: builderdeps{
-			raw:   mockRaw{},
-			route: mockRoute{},
-			tree:  mockTree{},
+		Deps: builderdeps{
+			Raw:   &mockRawBuilder{},
+			Route: &mockRouteBuilder{},
+			Tree: &mockTreeBuilder{
+				BuildFn: func() (map[string]*Node, TreeSelector, error) {
+					return map[string]*Node{}, func(selector string) (map[string]any, error) {
+						if selector == "invalid" {
+							return nil, errors.New("notfound")
+						}
+						return map[string]any{}, nil
+					}, nil
+				},
+			},
 		},
 	}
 
@@ -65,21 +86,41 @@ func TestBuilder_Build_Success(t *testing.T) {
 		t.Fatal("result is nil")
 	}
 
-	if res.Selector == nil {
+	if res.Raw() == nil {
+		t.Fatal("raw is nil")
+	}
+
+	if res.Routes() == nil {
+		t.Fatal("routes is nil")
+	}
+
+	if res.Tree() == nil {
+		t.Fatal("tree is nil")
+	}
+
+	if res.Selector() == nil {
 		t.Fatal("selector is nil")
 	}
 
-	if len(res.Raw) == 0 {
-		t.Fatal("raw is empty")
+	if _, err := res.Select(""); err != nil {
+		t.Fatal("select is nil")
+	}
+
+	if _, err := res.Select("invalid"); err == nil {
+		t.Fatal("expected error")
 	}
 }
 
 func TestBuilder_Build_RawError(t *testing.T) {
 	b := &builder{
-		deps: builderdeps{
-			raw:   mockRaw{err: errors.New("raw error")},
-			route: mockRoute{},
-			tree:  mockTree{},
+		Deps: builderdeps{
+			Raw: &mockRawBuilder{
+				BuildFn: func() ([]RawRoute, error) {
+					return nil, errors.New("raw error")
+				},
+			},
+			Route: &mockRouteBuilder{},
+			Tree:  &mockTreeBuilder{},
 		},
 	}
 
@@ -91,10 +132,14 @@ func TestBuilder_Build_RawError(t *testing.T) {
 
 func TestBuilder_Build_RouteError(t *testing.T) {
 	b := &builder{
-		deps: builderdeps{
-			raw:   mockRaw{},
-			route: mockRoute{err: errors.New("route error")},
-			tree:  mockTree{},
+		Deps: builderdeps{
+			Raw: &mockRawBuilder{},
+			Route: &mockRouteBuilder{
+				BuildFn: func() ([]Route, error) {
+					return nil, errors.New("route error")
+				},
+			},
+			Tree: &mockTreeBuilder{},
 		},
 	}
 
@@ -106,10 +151,14 @@ func TestBuilder_Build_RouteError(t *testing.T) {
 
 func TestBuilder_Build_TreeError(t *testing.T) {
 	b := &builder{
-		deps: builderdeps{
-			raw:   mockRaw{},
-			route: mockRoute{},
-			tree:  mockTree{err: errors.New("tree error")},
+		Deps: builderdeps{
+			Raw:   &mockRawBuilder{},
+			Route: &mockRouteBuilder{},
+			Tree: &mockTreeBuilder{
+				BuildFn: func() (map[string]*Node, TreeSelector, error) {
+					return nil, nil, errors.New("tree error")
+				},
+			},
 		},
 	}
 
