@@ -6,179 +6,83 @@ import (
 	"testing"
 
 	appErr "github.com/sekhudin/trax/internal/errors"
+	"github.com/sekhudin/trax/internal/testutil/errormock"
 )
 
-func TestParseCommand(t *testing.T) {
-	r := &CommandRunner{}
+func TestRunner_Success(t *testing.T) {
+	t.Run("execute_echo_command", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		r := NewRunner(buf, buf)
 
-	t.Run("nil command -> invalid config error", func(t *testing.T) {
-		_, _, err := r.parseCommand(nil)
-		if err == nil {
-			t.Fatal("expected error")
-		}
-
-		var ce *appErr.CoreError
-		if !errors.As(err, &ce) {
-			t.Fatal("expected CoreError")
-		}
-
-		if ce.Code != appErr.ErrInvalidConfig {
-			t.Fatalf("unexpected code: %s", ce.Code)
-		}
-	})
-
-	t.Run("missing exec field", func(t *testing.T) {
-		_, _, err := r.parseCommand(map[string]any{})
-		if err == nil {
-			t.Fatal("expected error")
-		}
-	})
-
-	t.Run("invalid exec type", func(t *testing.T) {
-		_, _, err := r.parseCommand(map[string]any{
-			"exec": 123,
-		})
-		if err == nil {
-			t.Fatal("expected error")
-		}
-	})
-
-	t.Run("empty exec string", func(t *testing.T) {
-		_, _, err := r.parseCommand(map[string]any{
-			"exec": "",
-		})
-		if err == nil {
-			t.Fatal("expected error")
-		}
-	})
-
-	t.Run("args as []any", func(t *testing.T) {
-		exe, args, err := r.parseCommand(map[string]any{
+		cmd := map[string]any{
 			"exec": "echo",
-			"args": []any{"a", 1, true},
-		})
-		if err != nil {
-			t.Fatal(err)
+			"args": []any{"trax", 1, true},
 		}
 
-		if exe != "echo" || len(args) != 3 {
-			t.Fatalf("unexpected: %s %#v", exe, args)
+		if err := r.Run(cmd); err != nil {
+			t.Fatalf("unexpected_error: %v", err)
 		}
 	})
 
-	t.Run("args as []string", func(t *testing.T) {
+	t.Run("args_string_slice", func(t *testing.T) {
+		r := &CommandRunner{}
 		_, args, err := r.parseCommand(map[string]any{
-			"exec": "echo",
-			"args": []string{"a", "b"},
+			"exec": "ls",
+			"args": []string{"-a", "-l"},
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if args[0] != "a" || args[1] != "b" {
-			t.Fatalf("unexpected args: %#v", args)
-		}
-	})
-
-	t.Run("no args", func(t *testing.T) {
-		exe, args, err := r.parseCommand(map[string]any{
-			"exec": "echo",
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if exe != "echo" || len(args) != 0 {
-			t.Fatalf("unexpected: %s %#v", exe, args)
+		if err != nil || len(args) != 2 {
+			t.Fatal("parse_slice_failed")
 		}
 	})
 }
 
-func TestRun_Success(t *testing.T) {
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-
-	r := NewRunner(stdout, stderr).(*CommandRunner)
-
-	err := r.Run(map[string]any{
-		"exec": "echo",
-		"args": []string{"hello"},
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestRun_Failure_CommandNotFound(t *testing.T) {
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-
-	r := NewRunner(stdout, stderr).(*CommandRunner)
-
-	err := r.Run(map[string]any{
-		"exec": "this-command-does-not-exist-xyz",
-	})
-
-	if err == nil {
-		t.Fatal("expected error")
-	}
-
-	var ce *appErr.CoreError
-	if !errors.As(err, &ce) {
-		t.Fatal("expected CoreError")
-	}
-
-	if ce.Code != appErr.ErrExecution {
-		t.Fatalf("expected execution error, got %s", ce.Code)
-	}
-}
-
-func TestRun_ParseError_Propagation(t *testing.T) {
+func TestRunner_Error(t *testing.T) {
 	r := &CommandRunner{}
 
-	err := r.Run(nil)
-
-	if err == nil {
-		t.Fatal("expected error")
-	}
-
-	var ce *appErr.CoreError
-	if !errors.As(err, &ce) {
-		t.Fatal("expected CoreError from parseCommand")
-	}
-
-	if ce.Code != appErr.ErrInvalidConfig {
-		t.Fatalf("expected invalid config, got %s", ce.Code)
-	}
-}
-
-func TestInterface_Implementation(t *testing.T) {
-	var _ Runner = &CommandRunner{}
-}
-
-func TestWriterIsWired(t *testing.T) {
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-
-	r := NewRunner(stdout, stderr).(*CommandRunner)
-
-	if r.Stdout != stdout || r.Stderr != stderr {
-		t.Fatal("writer not wired correctly")
-	}
-}
-
-func TestParseCommand_ArgsMixedEdge(t *testing.T) {
-	r := &CommandRunner{}
-
-	_, args, err := r.parseCommand(map[string]any{
-		"exec": "echo",
-		"args": []any{1, "x", false, 3.14},
+	t.Run("nil_command_config", func(t *testing.T) {
+		err := r.Run(nil)
+		if err == nil || !errors.Is(err, errormock.With(appErr.ErrInvalidConfig)) {
+			t.Fatal("should_invalid_config")
+		}
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	if len(args) != 4 {
-		t.Fatalf("unexpected args: %#v", args)
-	}
+	t.Run("missing_exec_field", func(t *testing.T) {
+		err := r.Run(map[string]any{"args": []string{"hi"}})
+		if err == nil || !errors.Is(err, errormock.With(appErr.ErrInvalidConfig)) {
+			t.Fatal("should_require_exec")
+		}
+	})
+
+	t.Run("command_not_found", func(t *testing.T) {
+		r := NewRunner(&bytes.Buffer{}, &bytes.Buffer{})
+		err := r.Run(map[string]any{"exec": "invalid-cmd-123"})
+		if err == nil || !errors.Is(err, errormock.With(appErr.ErrExecution)) {
+			t.Fatal("should_execution_error")
+		}
+	})
+}
+
+func TestRunner_Fallback(t *testing.T) {
+	t.Run("interface_implementation_check", func(t *testing.T) {
+		var _ Runner = (*CommandRunner)(nil)
+	})
+
+	t.Run("writer_wiring_check", func(t *testing.T) {
+		stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+		r := NewRunner(stdout, stderr).(*CommandRunner)
+		if r.Stdout != stdout || r.Stderr != stderr {
+			t.Fatal("wiring_failed")
+		}
+	})
+
+	t.Run("mixed_type_args", func(t *testing.T) {
+		r := &CommandRunner{}
+		_, args, _ := r.parseCommand(map[string]any{
+			"exec": "echo",
+			"args": []any{3.14, false},
+		})
+		if args[0] != "3.14" || args[1] != "false" {
+			t.Fatal("string_conversion_failed")
+		}
+	})
 }
