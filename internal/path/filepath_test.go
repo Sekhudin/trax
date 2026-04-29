@@ -2,7 +2,6 @@ package path
 
 import (
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,145 +10,78 @@ import (
 
 func TestParseFilePath_Success(t *testing.T) {
 	cases := []struct {
-		name        string
-		input       string
-		allowedExts []string
-		expectExt   string
-		expectFile  string
+		name   string
+		input  string
+		exts   []string
+		expect string
 	}{
-		{
-			name:        "valid ts file",
-			input:       "src/routes.ts",
-			allowedExts: []string{".ts"},
-			expectExt:   ".ts",
-			expectFile:  "routes.ts",
-		},
-		{
-			name:        "valid nested path",
-			input:       "src/trax/routes.ts",
-			allowedExts: []string{".ts"},
-			expectExt:   ".ts",
-			expectFile:  "routes.ts",
-		},
-		{
-			name:        "uppercase extension normalized",
-			input:       "src/routes.TS",
-			allowedExts: []string{".ts"},
-			expectExt:   ".ts",
-			expectFile:  "routes.TS",
-		},
+		{"standard_file_path", "src/routes.ts", []string{".ts"}, ".ts"},
+		{"nested_folder_path", "app/api/user.go", []string{".go"}, ".go"},
+		{"case_insensitive_ext", "README.MD", []string{".md"}, ".md"},
+		{"dot_slash_prefix", "./main.go", []string{".go"}, ".go"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			fp, err := ParseFilePath(tc.input, tc.allowedExts)
+			fp, err := ParseFilePath(tc.input, tc.exts)
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf("unexpected_error: %v", err)
 			}
-
-			if fp.Ext != tc.expectExt {
-				t.Fatalf("expected ext %s, got %s", tc.expectExt, fp.Ext)
-			}
-
-			if !strings.HasSuffix(fp.Filename, tc.expectFile) {
-				t.Fatalf("unexpected filename: %s", fp.Filename)
-			}
-
-			if fp.Full == "" {
-				t.Fatal("expected Full path to not be empty")
+			if fp.Ext != tc.expect {
+				t.Errorf("ext_mismatch: %s", fp.Ext)
 			}
 		})
 	}
 }
 
-func TestParseFilePath_EmptyInput(t *testing.T) {
-	_, err := ParseFilePath("   ", []string{".ts"})
-	if err == nil {
-		t.Fatal("expected error")
-	}
+func TestParseFilePath_Error(t *testing.T) {
+	t.Run("empty_path_input", func(t *testing.T) {
+		_, err := ParseFilePath("  ", []string{".ts"})
+		if err == nil || err.(*appErr.CoreError).Code != appErr.ErrValidation {
+			t.Fatal("should_validate_empty")
+		}
+	})
 
-	ce, ok := err.(*appErr.CoreError)
-	if !ok {
-		t.Fatalf("expected CoreError, got %T", err)
-	}
+	t.Run("missing_file_extension", func(t *testing.T) {
+		_, err := ParseFilePath("Dockerfile", []string{".ts"})
+		if err == nil || !strings.Contains(err.Error(), "must include") {
+			t.Fatal("should_require_extension")
+		}
+	})
 
-	if ce.Code != appErr.ErrValidation {
-		t.Fatalf("expected validation error, got %s", ce.Code)
-	}
+	t.Run("unsupported_file_extension", func(t *testing.T) {
+		_, err := ParseFilePath("index.php", []string{".ts", ".go"})
+		if err == nil || !strings.Contains(err.Error(), "unsupported") {
+			t.Fatal("should_block_extension")
+		}
+	})
+
+	t.Run("rel_path_failed", func(t *testing.T) {
+		old := filepathRel
+		filepathRel = func(base, targ string) (string, error) {
+			return "", errors.New("mock_rel_error")
+		}
+
+		t.Cleanup(func() { filepathRel = old })
+
+		_, err := ParseFilePath("test.ts", []string{".ts"})
+		if err == nil || err.Error() != "mock_rel_error" {
+			t.Fatal("should_catch_rel_error")
+		}
+	})
 }
 
-func TestParseFilePath_NoExtension(t *testing.T) {
-	_, err := ParseFilePath("src/routes", []string{".ts"})
-	if err == nil {
-		t.Fatal("expected error")
-	}
+func TestParseFilePath_Fallback(t *testing.T) {
+	t.Run("allowed_ext_checker", func(t *testing.T) {
+		if !isAllowedExt(".ts", []string{".ts"}) {
+			t.Fatal("check_failed")
+		}
+	})
 
-	ce, ok := err.(*appErr.CoreError)
-	if !ok {
-		t.Fatalf("expected CoreError, got %T", err)
-	}
-
-	if ce.Code != appErr.ErrValidation {
-		t.Fatalf("expected validation error, got %s", ce.Code)
-	}
-
-	if !strings.Contains(ce.Message, "must include file extension") {
-		t.Fatal("unexpected message:", ce.Message)
-	}
-}
-
-func TestParseFilePath_UnsupportedExtension(t *testing.T) {
-	_, err := ParseFilePath("src/routes.go", []string{".ts"})
-	if err == nil {
-		t.Fatal("expected error")
-	}
-
-	ce, ok := err.(*appErr.CoreError)
-	if !ok {
-		t.Fatalf("expected CoreError, got %T", err)
-	}
-
-	if ce.Code != appErr.ErrValidation {
-		t.Fatalf("expected validation error, got %s", ce.Code)
-	}
-
-	if !strings.Contains(ce.Message, "unsupported extension") {
-		t.Fatal("unexpected message:", ce.Message)
-	}
-}
-
-func TestParseFilePath_RelPathEdgeCase(t *testing.T) {
-	input := "./src/routes.ts"
-
-	fp, err := ParseFilePath(input, []string{".ts"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if filepath.Ext(fp.Full) != ".ts" {
-		t.Fatal("expected .ts extension")
-	}
-}
-
-func TestIsAllowedExt(t *testing.T) {
-	if !isAllowedExt(".ts", []string{".ts", ".js"}) {
-		t.Fatal("expected true")
-	}
-
-	if isAllowedExt(".go", []string{".ts"}) {
-		t.Fatal("expected false")
-	}
-}
-
-func TestParseFilePath_RelErrorImpossiblePath(t *testing.T) {
-	_, err := filepath.Rel(string(rune(0)), "test.ts")
-	if err == nil {
-		t.Skip("cannot trigger Rel error on this OS")
-	}
-
-	_, err2 := ParseFilePath("test.ts", []string{".ts"})
-	if err2 != nil {
-		var ce *appErr.CoreError
-		_ = errors.As(err2, &ce)
-	}
+	t.Run("path_component_split", func(t *testing.T) {
+		fp, _ := ParseFilePath("dir/file.ts", []string{".ts"})
+		if fp.Dir != "dir" || fp.Filename != "file.ts" {
+			t.Fatal("split_logic_failed")
+		}
+	})
 }

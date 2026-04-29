@@ -16,13 +16,15 @@ type FilePath struct {
 	Full     string
 }
 
+var filepathRel = filepath.Rel
+
 func ParseFilePath(out string, allowedExts []string) (*FilePath, error) {
 	clean := strings.TrimSpace(out)
 	if clean == "" {
 		return nil, appErr.NewValidationError("path", "path cannot be empty")
 	}
 
-	rel, err := filepath.Rel(".", clean)
+	rel, err := filepathRel(".", clean)
 	if err != nil {
 		return nil, err
 	}
