@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"reflect"
 	"strings"
-
-	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
 type nextrule struct {
@@ -62,7 +59,7 @@ func (n *nextapp) shouldSkip(p string, d fs.DirEntry) error {
 	return n.rule.shouldSkip(d)
 }
 
-func (n *nextapp) normalizeSegment(seg string) (string, error) {
+func (n *nextapp) normalizeSegment(seg string) string {
 	return n.rule.normalizeSegment(seg)
 }
 
@@ -70,7 +67,7 @@ func (n *nextpage) shouldSkip(p string, d fs.DirEntry) error {
 	return n.rule.shouldSkip(d)
 }
 
-func (n *nextpage) normalizeSegment(seg string) (string, error) {
+func (n *nextpage) normalizeSegment(seg string) string {
 	return n.rule.normalizeSegment(seg)
 }
 
@@ -188,38 +185,45 @@ func (n *nextrule) shouldSkip(d fs.DirEntry) error {
 	return nil
 }
 
-func (n *nextrule) normalizeSegment(seg string) (string, error) {
+func (n *nextrule) normalizeSegment(seg string) string {
 	if seg == "" {
-		return seg, nil
+		return seg
 	}
 
 	kind := n.segmentKind(seg)
-	if kind != "Static" {
-		a := n.getAffix(kind)
-		if strings.HasPrefix(seg, a.pre) {
-			if !strings.HasSuffix(seg, a.suf) {
-				msg := fmt.Sprintf("%q invalid segment", seg)
-				return "", appErr.NewInvalidConfigError("path", msg)
-			}
-		}
+	if kind == "Static" {
+		r := strings.NewReplacer(
+			"(", "p_",
+			")", "_s",
+		)
 
-		seg = strings.TrimPrefix(seg, a.pre)
-		seg = strings.TrimSuffix(seg, a.suf)
-		seg = strings.TrimSpace(seg)
+		seg = r.Replace(seg)
 	}
+
+	r := strings.NewReplacer(
+		".", "",
+		"@", "",
+		" ", "",
+		"[", "",
+		"]", "",
+		"(", "",
+		")", "",
+	)
+
+	seg = r.Replace(seg)
 
 	switch kind {
 	case "Group":
-		return "", nil
+		return ""
 
 	case "Params":
-		return fmt.Sprintf(":%s", seg), nil
+		return fmt.Sprintf(":%s", seg)
 
 	case "Slug", "OSlug":
-		return "*", nil
+		return "*"
 
 	default:
-		return seg, nil
+		return seg
 	}
 }
 
@@ -228,27 +232,16 @@ func (n *nextrule) segmentKind(seg string) string {
 	case strings.HasPrefix(seg, n.Group.pre) && strings.HasSuffix(seg, n.Group.suf):
 		return "Group"
 
-	case strings.HasPrefix(seg, n.OSlug.pre):
+	case strings.HasPrefix(seg, n.OSlug.pre) && strings.HasSuffix(seg, n.OSlug.suf):
 		return "OSlug"
 
-	case strings.HasPrefix(seg, n.Slug.pre):
+	case strings.HasPrefix(seg, n.Slug.pre) && strings.HasSuffix(seg, n.Slug.suf):
 		return "Slug"
 
-	case strings.HasPrefix(seg, n.Params.pre):
+	case strings.HasPrefix(seg, n.Params.pre) && strings.HasSuffix(seg, n.Params.suf):
 		return "Params"
 
 	default:
 		return "Static"
 	}
-}
-
-func (n *nextrule) getAffix(field string) affix {
-	rv := reflect.ValueOf(n)
-	rv = reflect.Indirect(rv).FieldByName(field)
-
-	if !rv.IsValid() {
-		panic("(nextrule:getAffix) invalid affix field: " + field)
-	}
-
-	return rv.Interface().(affix)
 }

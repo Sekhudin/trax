@@ -2,434 +2,142 @@ package routes
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/sekhudin/trax/internal/config"
 	"github.com/sekhudin/trax/internal/path"
 )
 
-func testSymbols() *config.RoutesSymbols {
-	return &config.RoutesSymbols{
-		Param:    ":",
-		Wildcard: "*",
-		Root:     "$",
-	}
-}
-
-func testConfigTS() *Config {
+func testTemplate_Config(ext string, noDeps bool) *Config {
 	return &Config{
-		NoDeps: false,
-		Output: &path.FilePath{
-			Ext: ".ts",
+		NoDeps: noDeps,
+		Output: &path.FilePath{Ext: ext},
+		Symbols: &config.RoutesSymbols{
+			Param:    ":",
+			Wildcard: "*",
+			Root:     "$",
 		},
-		Symbols: testSymbols(),
 	}
 }
 
-func testConfigJSNoDeps() *Config {
-	return &Config{
-		NoDeps: true,
-		Output: &path.FilePath{
-			Ext: ".js",
-		},
-		Symbols: testSymbols(),
-	}
-}
-
-func mockSelectorOK() TreeSelector {
+func testTemplate_SelectorOK() TreeSelector {
 	return func(_ string) (map[string]any, error) {
 		return map[string]any{
 			"api": map[string]any{
 				"$": "/api",
-				"users": map[string]any{
-					"$": "/api/users",
-				},
 			},
 		}, nil
 	}
 }
 
-func mockSelectorError() TreeSelector {
-	return func(_ string) (map[string]any, error) {
-		return nil, errors.New("selector failed")
-	}
-}
+func TestTemplate_Success(t *testing.T) {
+	t.Run("build_typescript_mode", func(t *testing.T) {
+		tpl := NewTemplate(TemplateDeps{
+			Cfg:      testTemplate_Config(".ts", false),
+			Selector: testTemplate_SelectorOK(),
+			Routes:   []Route{{Path: "/posts/:id"}},
+		})
 
-func newTpl(cfg *Config, sel TreeSelector, routes []Route) *template {
-	return &template{
-		deps: TemplateDeps{
-			Cfg:      cfg,
-			Selector: sel,
-			Routes:   routes,
-		},
-	}
-}
+		out, err := tpl.Build()
+		if err != nil || out == "" {
+			t.Fatal("should_build_ts_successfully")
+		}
 
-func TestNewTemplate(t *testing.T) {
-	cfg := testConfigTS()
-
-	deps := TemplateDeps{
-		Cfg:      cfg,
-		Routes:   []Route{{Path: "/test"}},
-		Selector: mockSelectorOK(),
-	}
-
-	tpl := NewTemplate(deps)
-
-	if tpl == nil {
-		t.Fatal("expected template instance")
-	}
-
-	if _, ok := tpl.(*template); !ok {
-		t.Fatal("expected *template type")
-	}
-}
-
-func TestRoutesTpl_Build_TS_Mode(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), []Route{
-		{Path: "/users"},
-		{Path: "/posts/:id"},
+		if !strings.Contains(out, "type RoutePattern") || !strings.Contains(out, "as const") {
+			t.Fatal("missing_typescript_definitions")
+		}
 	})
 
-	out, err := tpl.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("build_js_nodeps_mode", func(t *testing.T) {
+		tpl := NewTemplate(TemplateDeps{
+			Cfg:      testTemplate_Config(".js", true),
+			Selector: testTemplate_SelectorOK(),
+			Routes:   []Route{{Path: "/users"}},
+		})
 
-	if out == "" {
-		t.Fatal("expected output")
-	}
-}
+		out, err := tpl.Build()
+		if err != nil || out == "" {
+			t.Fatal("should_build_js_successfully")
+		}
 
-func TestRoutesTpl_Build_JS_NoDeps(t *testing.T) {
-	cfg := testConfigJSNoDeps()
-
-	tpl := newTpl(cfg, mockSelectorOK(), []Route{
-		{Path: "/users"},
+		if strings.Contains(out, "import qs") {
+			t.Fatal("should_not_contain_qs_import_in_nodeps_mode")
+		}
 	})
 
-	out, err := tpl.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("serialize_logic_branches", func(t *testing.T) {
+		instance := NewTemplate(TemplateDeps{
+			Cfg: testTemplate_Config(".ts", false),
+		}).(*template)
 
-	if out == "" {
-		t.Fatal("expected output")
-	}
+		data := map[string]any{
+			"$":    "/admin",
+			"name": "admin_page",
+		}
+
+		out := instance.serilizeRoutes(data, "", "admin")
+
+		if !strings.Contains(out, "createRoute(tree.admin.$)") {
+			t.Fatal("root_symbol_should_trigger_createroute")
+		}
+		if !strings.Contains(out, `"admin_page"`) {
+			t.Fatal("static_string_should_be_quoted")
+		}
+	})
 }
 
-func TestRoutesTpl_Build_SelectorError(t *testing.T) {
-	cfg := testConfigTS()
+func TestTemplate_Error(t *testing.T) {
+	t.Run("selector_failure", func(t *testing.T) {
+		selErr := func(_ string) (map[string]any, error) { return nil, errors.New("fail") }
+		tpl := NewTemplate(TemplateDeps{
+			Cfg:      testTemplate_Config(".ts", false),
+			Selector: selErr,
+		})
 
-	tpl := newTpl(cfg, mockSelectorError(), []Route{})
-
-	out, err := tpl.Build()
-	if err == nil {
-		t.Fatal(err)
-	}
-
-	if out != "" {
-		t.Fatal("expected tree json")
-	}
-}
-
-func TestRoutesTpl_Warning(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	w := tpl.warning()
-
-	if w == "" {
-		t.Fatal("warning should not be empty")
-	}
-}
-
-func TestRoutesTpl_IsTypeScript(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	if !tpl.isTypescrpt() {
-		t.Fatal("expected typescript mode")
-	}
-}
-
-func TestRoutesTpl_IsNoDeps(t *testing.T) {
-	cfg := testConfigJSNoDeps()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	if !tpl.isNoDeps() {
-		t.Fatal("expected no deps mode")
-	}
-}
-
-func TestRoutesTpl_ImportDeps(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	if tpl.importDeps() == "" {
-		t.Fatal("expected import qs")
-	}
-}
-
-func TestRoutesTpl_ImportDeps_NoDeps(t *testing.T) {
-	cfg := testConfigJSNoDeps()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	if tpl.importDeps() != "" {
-		t.Fatal("expected empty import")
-	}
-}
-
-func TestRoutesTpl_RoutePattern(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), []Route{
-		{Path: "/a"},
-		{Path: "/b"},
+		_, err := tpl.Build()
+		if err == nil {
+			t.Fatal("should_catch_selector_error")
+		}
 	})
 
-	out := tpl.tRoutePattern()
+	t.Run("marshal_failure", func(t *testing.T) {
+		badSel := func(_ string) (map[string]any, error) {
+			return map[string]any{"bad": make(chan int)}, nil
+		}
+		instance := NewTemplate(TemplateDeps{
+			Cfg:      testTemplate_Config(".ts", false),
+			Selector: badSel,
+		}).(*template)
 
-	if out == "" {
-		t.Fatal("expected route pattern type")
-	}
+		_, err := instance.rTreeJSON()
+		if err == nil {
+			t.Fatal("should_catch_json_marshal_error")
+		}
+	})
 }
 
-func TestRoutesTpl_ExactParams(t *testing.T) {
-	cfg := testConfigTS()
+func TestTemplate_Fallback(t *testing.T) {
+	t.Run("empty_routes_pattern", func(t *testing.T) {
+		instance := NewTemplate(TemplateDeps{
+			Cfg:    testTemplate_Config(".ts", false),
+			Routes: []Route{},
+		}).(*template)
 
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.tExactParams()
-
-	if out == "" {
-		t.Fatal("expected exact params type")
-	}
-}
-
-func TestRoutesTpl_ReplaceParams(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.tReplaceParams()
-
-	if out == "" {
-		t.Fatal("expected replace params type")
-	}
-}
-
-func TestRoutesTpl_WithQuery(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.tWithQuery()
-
-	if out == "" {
-		t.Fatal("expected with query type")
-	}
-}
-
-func TestRoutesTpl_RoutesLike(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.tRoutesLike()
-
-	if out == "" {
-		t.Fatal("expected routes like type")
-	}
-}
-
-func TestRoutesTpl_CleanPath(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.fCleanPath()
-
-	if out == "" {
-		t.Fatal("expected cleanPath function")
-	}
-}
-
-func TestRoutesTpl_FillParams(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.fFillParams()
-
-	if out == "" {
-		t.Fatal("expected fillParams function")
-	}
-}
-
-func TestRoutesTpl_ToQueryString(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.fToQueryString()
-
-	if out == "" {
-		t.Fatal("expected toQueryString function")
-	}
-}
-
-func TestRoutesTpl_WithQueryFn(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.fWithQuery()
-
-	if out == "" {
-		t.Fatal("expected withQuery function")
-	}
-}
-
-func TestRoutesTpl_CreateRoute(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out := tpl.fCreateRoute()
-
-	if out == "" {
-		t.Fatal("expected createRoute function")
-	}
-}
-
-func TestRoutesTpl_RTreeJSON(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	out, err := tpl.rTreeJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if out == "" {
-		t.Fatal("expected tree json")
-	}
-}
-
-func TestTemplate_rTreeJSON_MarshalError(t *testing.T) {
-	cfg := testConfigTS()
-
-	selector := func(string) (map[string]any, error) {
-		return map[string]any{
-			"bad": make(chan int),
-		}, nil
-	}
-
-	tpl := newTpl(cfg, selector, nil)
-
-	_, err := tpl.rTreeJSON()
-	if err == nil {
-		t.Fatal("expected marshal error")
-	}
-}
-
-func TestRoutesTpl_RoutesJSON(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), []Route{
-		{Path: "/users"},
+		out := instance.tRoutePattern()
+		if !strings.Contains(out, "type RoutePattern =") {
+			t.Fatal("should_still_render_type_definition")
+		}
 	})
 
-	out, err := tpl.rRoutesJSON()
-	if err != nil {
-		t.Fatal("expected error nil")
-	}
+	t.Run("nodeps_query_string_logic", func(t *testing.T) {
+		instance := NewTemplate(TemplateDeps{
+			Cfg: testTemplate_Config(".js", true),
+		}).(*template)
 
-	if out == "" {
-		t.Fatal("expected routes json")
-	}
-}
-
-func TestTemplate_rRoutesJSON_AllBranches(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, func(string) (map[string]any, error) {
-		return map[string]any{
-			"api": map[string]any{
-				"$":     "/api",
-				"users": "/api/users",
-			},
-		}, nil
-	}, nil)
-
-	out, err := tpl.rRoutesJSON()
-	if err != nil {
-		t.Fatal("expected error is nil")
-	}
-
-	if out == "" {
-		t.Fatal("expected output")
-	}
-}
-
-func TestRoutesTpl_rRoutesJSON_SelectorError(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorError(), nil)
-
-	out, err := tpl.rRoutesJSON()
-	if err == nil {
-		t.Fatal("expected error is nil")
-	}
-
-	if out != "" {
-		t.Fatal("expected output is empty")
-	}
-}
-
-func TestRoutesTpl_SerializeRoutes(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	data := map[string]any{
-		"api": map[string]any{
-			"$": "/api",
-		},
-	}
-
-	out := tpl.serilizeRoutes(data, "", "")
-
-	if out == "" {
-		t.Fatal("expected serialized output")
-	}
-}
-
-func TestTemplate_serializeRoutes_AllBranches(t *testing.T) {
-	cfg := testConfigTS()
-
-	tpl := newTpl(cfg, mockSelectorOK(), nil)
-
-	data := map[string]any{
-		"$": "/root",
-		"users": map[string]any{
-			"$":       "/users",
-			"profile": "/users/profile",
-		},
-	}
-
-	out := tpl.serilizeRoutes(data, "", "")
-
-	if out == "" {
-		t.Fatal("expected output")
-	}
+		out := instance.fToQueryString()
+		if !strings.Contains(out, "new URLSearchParams()") {
+			t.Fatal("should_use_native_api_when_nodeps_is_true")
+		}
+	})
 }

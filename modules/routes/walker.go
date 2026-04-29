@@ -24,7 +24,7 @@ type walkrule struct {
 
 type walkerstrategy interface {
 	shouldSkip(p string, d fs.DirEntry) error
-	normalizeSegment(seg string) (string, error)
+	normalizeSegment(seg string) string
 }
 
 type walker struct {
@@ -32,6 +32,8 @@ type walker struct {
 	config   *Config
 	rule     *walkrule
 }
+
+var filepathRel = filepath.Rel
 
 func (w *walker) walk() ([]RawRoute, error) {
 	var rs []RawRoute
@@ -52,7 +54,7 @@ func (w *walker) walk() ([]RawRoute, error) {
 			return nil
 		}
 
-		rel, err := filepath.Rel(c.Root, p)
+		rel, err := filepathRel(c.Root, p)
 		if err != nil {
 			return appErr.NewInternalError("path", fmt.Sprintf("failed to calculate relative path %q", p), err)
 		}
@@ -60,11 +62,7 @@ func (w *walker) walk() ([]RawRoute, error) {
 		segs := w.splitSegments(rel)
 		name := w.buildName(segs)
 
-		segs, err = w.normalizeSegments(segs)
-		if err != nil {
-			return nil
-		}
-
+		segs = w.normalizeSegments(segs)
 		path := w.buildPath(segs)
 
 		rs = append(rs, RawRoute{Name: name, Path: path})
@@ -122,21 +120,18 @@ func (w *walker) splitSegments(rel string) []string {
 	return res
 }
 
-func (w *walker) normalizeSegments(segs []string) ([]string, error) {
+func (w *walker) normalizeSegments(segs []string) []string {
 	res := []string{}
 
 	ws := w.strategy
 
 	for _, seg := range segs {
-		normal, err := ws.normalizeSegment(seg)
-		if err != nil {
-			return nil, err
-		}
+		normal := ws.normalizeSegment(seg)
 
 		res = append(res, normal)
 	}
 
-	return res, nil
+	return res
 }
 
 func (*walker) buildPath(segs []string) string {

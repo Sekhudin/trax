@@ -30,20 +30,11 @@ func NewRawRouteBuilder(cfg *Config) RawRouteBuilder {
 }
 
 func (b *rawroute) Build() ([]RawRoute, error) {
-	var reader func() ([]RawRoute, error)
-
 	if b.cfg.IsFileStrategy {
-		reader = b.readFile
-	} else {
-		reader = b.readDisc
+		return b.readFile()
 	}
 
-	rws, err := reader()
-	if err != nil {
-		return nil, err
-	}
-
-	return rws, nil
+	return b.readDisc()
 }
 
 func (b *rawroute) readFile() ([]RawRoute, error) {
@@ -75,21 +66,11 @@ func (b *rawroute) readDisc() ([]RawRoute, error) {
 	switch b.cfg.Strategy {
 	case "next-app":
 		w := walker{strategy: nextApp, config: b.cfg, rule: &nextApp.rule.app}
-		rws, err := w.walk()
-		if err != nil {
-			return nil, err
-		}
-
-		return rws, nil
+		return w.walk()
 
 	case "next-page":
 		w := walker{strategy: nextPage, config: b.cfg, rule: &nextApp.rule.app}
-		rws, err := w.walk()
-		if err != nil {
-			return nil, err
-		}
-
-		return rws, nil
+		return w.walk()
 
 	default:
 		msg := fmt.Sprintf("failed to read routes (strategy: %q)", b.cfg.Strategy)

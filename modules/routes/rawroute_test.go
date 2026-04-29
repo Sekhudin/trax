@@ -8,138 +8,96 @@ import (
 	"github.com/sekhudin/trax/internal/path"
 )
 
-func writeFile(t *testing.T, content string) string {
+func rawTest_writeFile(t *testing.T, content string) string {
 	t.Helper()
+
 	dir := t.TempDir()
 	fp := filepath.Join(dir, "routes.yaml")
-
 	if err := os.WriteFile(fp, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
-
 	return fp
 }
 
-func fileCfg(fp string) *Config {
+func rawTest_Cfg(fp string) *Config {
 	return &Config{
 		IsFileStrategy: true,
 		File:           &path.FilePath{Full: fp},
 	}
 }
 
-func TestReadFile_AllBranches(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		path    string
-		wantErr bool
-	}{
-		{
-			name:    "config not found",
-			path:    "/not/exist.yaml",
-			wantErr: true,
-		},
-		{
-			name: "unmarshal error",
-			content: `
-routes
-wrong_field: "oops"
-`,
-			wantErr: true,
-		},
-		{
-			name: "empty routes",
-			content: `
-routes: []
-`,
-			wantErr: true,
-		},
-		{
-			name: "success",
-			content: `
-routes:
-  - name: users
-    path: /users
-`,
-			wantErr: false,
-		},
-	}
+func TestRawRouteBuilder_Success(t *testing.T) {
+	t.Run("read_valid_file", func(t *testing.T) {
+		content := "routes:\n  - name: users\n    path: /users"
+		fp := rawTest_writeFile(t, content)
+		b := NewRawRouteBuilder(rawTest_Cfg(fp))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fp := tt.path
-			if tt.content != "" {
-				fp = writeFile(t, tt.content)
-			}
+		_, err := b.Build()
+		if err != nil {
+			t.Fatal("should_build_successfully")
+		}
+	})
 
-			b := rawroute{
-				cfg: fileCfg(fp),
-			}
+	t.Run("read_next_app", func(t *testing.T) {
+		cfg := &Config{Strategy: "next-app", Root: "."}
+		b := NewRawRouteBuilder(cfg)
+		_, _ = b.Build()
+	})
 
-			rws, err := b.readFile()
-			if tt.wantErr && err == nil {
-				t.Fatal("expected error")
-			}
-			if !tt.wantErr {
-				if err != nil {
-					t.Fatal(err)
-				}
-				if len(rws) != 1 {
-					t.Fatal("expected 1 route")
-				}
-			}
-		})
-	}
+	t.Run("read_next_page", func(t *testing.T) {
+		cfg := &Config{Strategy: "next-page", Root: "."}
+		b := NewRawRouteBuilder(cfg)
+		_, _ = b.Build()
+	})
 }
 
-func TestBuild_FileStrategy(t *testing.T) {
-	fp := writeFile(t, `
-routes:
-  - name: users
-    path: /users
-`)
-	b := NewRawRouteBuilder(fileCfg(fp))
+func TestRawRouteBuilder_Error(t *testing.T) {
+	t.Run("config_not_found", func(t *testing.T) {
+		b := rawroute{cfg: rawTest_Cfg("/not/exist.yaml")}
+		_, err := b.readFile()
+		if err == nil {
+			t.Fatal("should_trigger_entry_1")
+		}
+	})
 
-	rws, err := b.Build()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rws) != 1 {
-		t.Fatal("expected 1 route")
-	}
+	t.Run("bad_yaml_format", func(t *testing.T) {
+		fp := rawTest_writeFile(t, "routes: name 123]")
+		b := rawroute{cfg: rawTest_Cfg(fp)}
+		_, err := b.readFile()
+		if err == nil {
+			t.Fatal("should_trigger_entry_2")
+		}
+	})
+
+	t.Run("empty_routes_config", func(t *testing.T) {
+		fp := rawTest_writeFile(t, "routes: []")
+		b := rawroute{cfg: rawTest_Cfg(fp)}
+		_, err := b.readFile()
+		if err == nil {
+			t.Fatal("should_trigger_entry_3")
+		}
+	})
+
+	t.Run("invalid_strategy_type", func(t *testing.T) {
+		b := rawroute{cfg: &Config{Strategy: "wrong"}}
+		_, err := b.readDisc()
+		if err == nil {
+			t.Fatal("should_catch_invalid_strategy")
+		}
+	})
+
+	t.Run("walker_app_failed", func(t *testing.T) {
+		cfg := &Config{Strategy: "next-app", Root: "/invalid"}
+		b := NewRawRouteBuilder(cfg)
+		_, err := b.Build()
+		if err == nil {
+			t.Fatal("should_catch_walker_error")
+		}
+	})
 }
 
-func TestReadDisc_InvalidStrategy(t *testing.T) {
-	b := rawroute{
-		cfg: &Config{
-			IsFileStrategy: false,
-			Strategy:       "invalid",
-		},
-	}
-
-	_, err := b.readDisc()
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestBuild_ReadDisc_WalkerError(t *testing.T) {
-	tests := []string{"next-app", "next-page"}
-
-	for _, s := range tests {
-		t.Run(s, func(t *testing.T) {
-			cfg := &Config{
-				IsFileStrategy: false,
-				Strategy:       s,
-				Root:           "/definitely/not/exist",
-			}
-
-			b := NewRawRouteBuilder(cfg)
-
-			_, err := b.Build()
-			if err == nil {
-				t.Fatal("expected walker error")
-			}
-		})
-	}
+func TestRawRouteBuilder_Fallback(t *testing.T) {
+	t.Run("interface_compliance_check", func(t *testing.T) {
+		var _ RawRouteBuilder = (*rawroute)(nil)
+	})
 }

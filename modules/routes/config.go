@@ -56,8 +56,11 @@ func (c *rconfig) Load() (*Config, error) {
 	}
 
 	if !c.IsValidStrategy() {
-		msg := fmt.Sprintf("strategy: %q invalid, allowed: %s",
-			c.cfg.Strategy, "file, next-app or next-page")
+		msg := fmt.Sprintf(
+			"strategy: %q invalid, allowed: %s",
+			c.cfg.Strategy,
+			"file, next-app or next-page",
+		)
 
 		return nil, appErr.NewValidationError("strategy", msg)
 	}

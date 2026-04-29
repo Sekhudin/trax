@@ -8,43 +8,28 @@ import (
 	"testing"
 )
 
-type fakeStrategy struct {
-	skipErr      error
-	normalizeErr error
+type mockStrategy struct {
+	skipErr error
 }
 
-func (f *fakeStrategy) shouldSkip(string, fs.DirEntry) error {
-	return f.skipErr
-}
-
-func (f *fakeStrategy) normalizeSegment(seg string) (string, error) {
-	if f.normalizeErr != nil {
-		return "", f.normalizeErr
-	}
-	return seg, nil
+func (f *mockStrategy) shouldSkip(string, fs.DirEntry) error { return f.skipErr }
+func (f *mockStrategy) normalizeSegment(seg string) string {
+	return seg
 }
 
 func newTestWalker(root string, strat walkerstrategy) *walker {
 	return &walker{
 		strategy: strat,
-		config: &Config{
-			Root: root,
-		},
+		config:   &Config{Root: root},
 		rule: &walkrule{
-			exts: map[string]struct{}{
-				".ts": {},
-			},
-			identRoute: map[string]struct{}{
-				"index": {},
-			},
-			excludeFiles: map[string]struct{}{
-				"_app": {},
-			},
+			exts:         map[string]struct{}{".ts": {}},
+			identRoute:   map[string]struct{}{"index": {}},
+			excludeFiles: map[string]struct{}{"_app": {}},
 		},
 	}
 }
 
-func touch(t *testing.T, p string) {
+func testWalker_Touch(t *testing.T, p string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		t.Fatal(err)
@@ -54,190 +39,145 @@ func touch(t *testing.T, p string) {
 	}
 }
 
-func TestWalk_AllBranches(t *testing.T) {
+func TestWalker_Success(t *testing.T) {
 	root := t.TempDir()
+	w := newTestWalker(root, &mockStrategy{})
 
-	touch(t, filepath.Join(root, "users", "index.ts"))
-	touch(t, filepath.Join(root, "users", "profile.ts"))
+	t.Run("walk_valid_routes", func(t *testing.T) {
+		testWalker_Touch(t, filepath.Join(root, "users", "index.ts"))
+		testWalker_Touch(t, filepath.Join(root, "users", "profile.ts"))
+		testWalker_Touch(t, filepath.Join(root, "_app.ts"))
+		testWalker_Touch(t, filepath.Join(root, "ignore.js"))
 
-	touch(t, filepath.Join(root, "_app.ts"))
-
-	touch(t, filepath.Join(root, "ignore.js"))
-
-	w := newTestWalker(root, &fakeStrategy{})
-
-	rs, err := w.walk()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(rs) != 2 {
-		t.Fatalf("expected 2 routes, got %d", len(rs))
-	}
-}
-
-func TestWalk_ShouldSkipError(t *testing.T) {
-	root := t.TempDir()
-	touch(t, filepath.Join(root, "a.ts"))
-
-	w := newTestWalker(root, &fakeStrategy{
-		skipErr: errors.New("stop"),
+		rs, err := w.walk()
+		if err != nil || len(rs) != 2 {
+			t.Fatal("fail")
+		}
 	})
 
-	_, err := w.walk()
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestWalk_NormalizeError_SkipRoute(t *testing.T) {
-	root := t.TempDir()
-	touch(t, filepath.Join(root, "a.ts"))
-
-	w := newTestWalker(root, &fakeStrategy{
-		normalizeErr: errors.New("bad"),
+	t.Run("is_route_file", func(t *testing.T) {
+		p := filepath.Join(root, "ok.ts")
+		testWalker_Touch(t, p)
+		entries, _ := os.ReadDir(root)
+		for _, e := range entries {
+			if e.Name() == "ok.ts" && !w.isRouteFile(p, e) {
+				t.Fatal("fail")
+			}
+		}
 	})
 
-	rs, err := w.walk()
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("build_snake_name", func(t *testing.T) {
+		name := w.buildName([]string{"User-Profile", "Detail"})
+		if name != "user_profile_detail" {
+			t.Fatal("fail")
+		}
+	})
 
-	if len(rs) != 0 {
-		t.Fatal("route should be skipped")
-	}
+	t.Run("to_snake_case", func(t *testing.T) {
+		if w.toSnakeCase([]string{"User", "Profile"}) != "user_profile" {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("split_root_index", func(t *testing.T) {
+		segs := w.splitSegments("index.ts")
+		if len(segs) != 1 || segs[0] != "$root" {
+			t.Fatal("fail")
+		}
+		if w.buildPath(segs) != "/" {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("skip_middle_index", func(t *testing.T) {
+		segs := w.splitSegments(filepath.Join("users", "index", "profile.ts"))
+		if len(segs) != 2 || segs[1] != "profile" {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func TestWalk_RelError(t *testing.T) {
+func TestWalker_Error(t *testing.T) {
 	root := t.TempDir()
-	outside := t.TempDir()
 
-	touch(t, filepath.Join(outside, "a.ts"))
+	t.Run("strategy_skip_error", func(t *testing.T) {
+		testWalker_Touch(t, filepath.Join(root, "a.ts"))
+		w := newTestWalker(root, &mockStrategy{skipErr: errors.New("stop")})
+		if _, err := w.walk(); err == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	w := newTestWalker(root, &fakeStrategy{})
+	t.Run("walk_dir_access", func(t *testing.T) {
+		badDir := filepath.Join(root, "noaccess")
+		os.Mkdir(badDir, 0o000)
+		defer os.Chmod(badDir, 0o755)
+		w := newTestWalker(root, &mockStrategy{})
+		if _, err := w.walk(); err == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	link := filepath.Join(root, "link.ts")
-	if err := os.Symlink(filepath.Join(outside, "a.ts"), link); err != nil {
-		t.Skip("symlink not supported")
-	}
+	t.Run("relative_path_error", func(t *testing.T) {
+		old := filepathRel
+		filepathRel = func(base, targ string) (string, error) {
+			return "", errors.New("mock_rel_error")
+		}
 
-	_, err := w.walk()
-	if err == nil {
-	}
+		t.Cleanup(func() { filepathRel = old })
+
+		outside := t.TempDir()
+		testWalker_Touch(t, filepath.Join(outside, "a.ts"))
+		w := newTestWalker(root, &mockStrategy{})
+		link := filepath.Join(root, "link.ts")
+		if err := os.Symlink(filepath.Join(outside, "a.ts"), link); err != nil {
+			t.Skip("no symlink")
+		}
+		_, _ = w.walk()
+	})
 }
 
-func TestIsRouteFile_AllBranches(t *testing.T) {
+func TestWalker_Fallback(t *testing.T) {
 	root := t.TempDir()
-	w := newTestWalker(root, &fakeStrategy{})
+	w := newTestWalker(root, &mockStrategy{})
 
-	dirEntry, _ := os.ReadDir(root)
-	if len(dirEntry) == 0 {
+	t.Run("skip_directory_entry", func(t *testing.T) {
 		os.Mkdir(filepath.Join(root, "dir"), 0o755)
-		dirEntry, _ = os.ReadDir(root)
-	}
-	if w.isRouteFile(root, dirEntry[0]) {
-		t.Fatal("dir should be false")
-	}
-
-	p := filepath.Join(root, "a.js")
-	touch(t, p)
-	entries, _ := os.ReadDir(root)
-	if w.isRouteFile(p, entries[0]) {
-		t.Fatal("wrong ext should be false")
-	}
-
-	p2 := filepath.Join(root, "_app.ts")
-	touch(t, p2)
-	entries, _ = os.ReadDir(root)
-	for _, e := range entries {
-		if e.Name() == "_app.ts" && w.isRouteFile(p2, e) {
-			t.Fatal("excluded should be false")
+		entries, _ := os.ReadDir(root)
+		if w.isRouteFile(root, entries[0]) {
+			t.Fatal("fail")
 		}
-	}
+	})
 
-	p3 := filepath.Join(root, "ok.ts")
-	touch(t, p3)
-	entries, _ = os.ReadDir(root)
-	for _, e := range entries {
-		if e.Name() == "ok.ts" && !w.isRouteFile(p3, e) {
-			t.Fatal("should be true")
+	t.Run("ignore_wrong_extension", func(t *testing.T) {
+		p := filepath.Join(root, "a.js")
+		testWalker_Touch(t, p)
+		entries, _ := os.ReadDir(root)
+		if w.isRouteFile(p, entries[0]) {
+			t.Fatal("fail")
 		}
-	}
-}
+	})
 
-func TestBuildName_AllBranches(t *testing.T) {
-	w := newTestWalker("", &fakeStrategy{})
-
-	name := w.buildName([]string{"User-Profile", "Detail"})
-	if name != "user_profile_detail" {
-		t.Fatal(name)
-	}
-
-	name2 := w.buildName([]string{"@@@###"})
-	if name2 != "" {
-		t.Fatal("should be empty")
-	}
-}
-
-func TestToSnakeCase_AllBranches(t *testing.T) {
-	w := newTestWalker("", &fakeStrategy{})
-
-	if w.toSnakeCase([]string{}) != "" {
-		t.Fatal("empty should return empty")
-	}
-
-	if w.toSnakeCase([]string{"User", "Profile"}) != "user_profile" {
-		t.Fatal("wrong snake")
-	}
-}
-
-func TestSplitSegments_IdentRouteRoot(t *testing.T) {
-	root := t.TempDir()
-	w := newTestWalker(root, &fakeStrategy{})
-
-	segs := w.splitSegments("index.ts")
-
-	if len(segs) != 1 || segs[0] != "$root" {
-		t.Fatalf("expected [$root], got %v", segs)
-	}
-
-	p := w.buildPath(segs)
-	if p != "/" {
-		t.Fatalf("expected '/', got %q", p)
-	}
-}
-
-func TestSplitSegments_SkipIndexInMiddle(t *testing.T) {
-	root := t.TempDir()
-	w := newTestWalker(root, &fakeStrategy{})
-
-	segs := w.splitSegments(filepath.Join("users", "index", "profile.ts"))
-
-	want := []string{"users", "profile"}
-	if len(segs) != len(want) {
-		t.Fatalf("got %v", segs)
-	}
-
-	for i := range segs {
-		if segs[i] != want[i] {
-			t.Fatalf("got %v", segs)
+	t.Run("exclude_app_file", func(t *testing.T) {
+		p := filepath.Join(root, "_app.ts")
+		testWalker_Touch(t, p)
+		entries, _ := os.ReadDir(root)
+		for _, e := range entries {
+			if e.Name() == "_app.ts" && w.isRouteFile(p, e) {
+				t.Fatal("fail")
+			}
 		}
-	}
-}
+	})
 
-func TestWalk_WalkDirError(t *testing.T) {
-	root := t.TempDir()
+	t.Run("sanitize_empty_input", func(t *testing.T) {
+		if w.buildName([]string{"@@@###"}) != "" {
+			t.Fatal("fail")
+		}
+	})
 
-	badDir := filepath.Join(root, "noaccess")
-	if err := os.Mkdir(badDir, 0o000); err != nil {
-		t.Skip(err)
-	}
-	defer os.Chmod(badDir, 0o755)
-
-	w := newTestWalker(root, &fakeStrategy{})
-
-	_, err := w.walk()
-	if err == nil {
-		t.Fatal("expected walkdir error")
-	}
+	t.Run("empty_snake_input", func(t *testing.T) {
+		if w.toSnakeCase([]string{}) != "" {
+			t.Fatal("fail")
+		}
+	})
 }

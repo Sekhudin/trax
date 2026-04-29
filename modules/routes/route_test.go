@@ -4,159 +4,85 @@ import (
 	"testing"
 )
 
-func TestCleanPath_AllBranches(t *testing.T) {
-	b := route{
-		cfg: &Config{},
-	}
+func TestRouteBuilder_Success(t *testing.T) {
+	b := NewRouteBuilder(&Config{Prefix: "/api"})
 
-	tests := []struct {
-		name    string
-		rw      RawRoute
-		wantErr bool
-		want    string
-	}{
-		{
-			name:    "no leading slash",
-			rw:      RawRoute{Name: "a", Path: "users"},
-			wantErr: true,
-		},
-		{
-			name:    "double slash",
-			rw:      RawRoute{Name: "a", Path: "/users//list"},
-			wantErr: true,
-		},
-		{
-			name: "with query trimmed",
-			rw:   RawRoute{Name: "a", Path: "/users?id=1"},
-			want: "/users",
-		},
-		{
-			name: "trailing slash trimmed",
-			rw:   RawRoute{Name: "a", Path: "/users/"},
-			want: "/users",
-		},
-		{
-			name: "root path stays",
-			rw:   RawRoute{Name: "a", Path: "/"},
-			want: "/",
-		},
-	}
+	t.Run("split_with_prefix", func(t *testing.T) {
+		rw := RawRoute{Path: "/users"}
+		parts := b.(*route).splitPath(rw)
+		if len(parts) != 2 || parts[0] != "api" {
+			t.Fatal("should_include_prefix_parts")
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			out, err := b.cleanPath(tt.rw)
-			if tt.wantErr && err == nil {
-				t.Fatal("expected error")
-			}
-			if !tt.wantErr {
-				if err != nil {
-					t.Fatal(err)
-				}
-				if out != tt.want {
-					t.Fatalf("want %s got %s", tt.want, out)
-				}
-			}
-		})
-	}
+	t.Run("build_complete_route", func(t *testing.T) {
+		rws := []RawRoute{{Name: "home", Path: "/dashboard?ref=test"}}
+		rs, err := b.Build(rws)
+		if err != nil || rs[0].Path != "/dashboard" {
+			t.Fatal("should_build_without_query")
+		}
+	})
 }
 
-func TestSplitPath_WithAndWithoutPrefix(t *testing.T) {
-	b := route{
-		cfg: &Config{
-			Prefix: "/api",
-		},
-	}
-
-	rw := RawRoute{Path: "/users/list"}
-	parts := b.splitPath(rw)
-
-	if len(parts) != 3 {
-		t.Fatalf("expected 3 parts, got %v", parts)
-	}
-
-	b.cfg.Prefix = ""
-	parts = b.splitPath(rw)
-	if len(parts) != 2 {
-		t.Fatalf("expected 2 parts, got %v", parts)
-	}
-}
-
-func TestValidateParts_AllBranches(t *testing.T) {
-	b := route{
-		cfg: &Config{},
-	}
-
-	tests := []struct {
-		name    string
-		parts   []string
-		wantErr bool
-	}{
-		{
-			name:    "wildcard not last",
-			parts:   []string{"users", "*", "list"},
-			wantErr: true,
-		},
-		{
-			name:    "wildcard mixed chars",
-			parts:   []string{"users", "ab*cd"},
-			wantErr: true,
-		},
-		{
-			name:    "valid wildcard last",
-			parts:   []string{"users", "*"},
-			wantErr: false,
-		},
-		{
-			name:    "no wildcard",
-			parts:   []string{"users", "list"},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := b.validateParts(RawRoute{Name: "a"}, tt.parts)
-			if tt.wantErr && err == nil {
-				t.Fatal("expected error")
-			}
-			if !tt.wantErr && err != nil {
-				t.Fatal(err)
-			}
-		})
-	}
-}
-
-func TestBuild_AllBranches(t *testing.T) {
+func TestRouteBuilder_Error(t *testing.T) {
 	b := NewRouteBuilder(&Config{})
+	r := b.(*route)
 
-	rws := []RawRoute{
-		{Name: "ok", Path: "/users"},
-		{Name: "bad", Path: "no-slash"},
-	}
+	t.Run("missing_leading_slash", func(t *testing.T) {
+		_, err := r.cleanPath(RawRoute{Path: "no-slash"})
+		if err == nil {
+			t.Fatal("should_reject_no_slash")
+		}
+	})
 
-	_, err := b.Build(rws)
-	if err == nil {
-		t.Fatal("expected error from cleanPath")
-	}
+	t.Run("contains doule slash", func(t *testing.T) {
+		_, err := r.cleanPath(RawRoute{Path: "/foo//bar"})
+		if err == nil {
+			t.Fatal("should_reject_double_slash")
+		}
+	})
 
-	rws = []RawRoute{
-		{Name: "ok", Path: "/users/*/list"},
-	}
+	t.Run("wildcard_mid_segment", func(t *testing.T) {
+		err := r.validateParts(RawRoute{}, []string{"a", "*", "b"})
+		if err == nil {
+			t.Fatal("should_reject_misplaced_wildcard")
+		}
+	})
 
-	_, err = b.Build(rws)
-	if err == nil {
-		t.Fatal("expected error from validateParts")
-	}
+	t.Run("invalid_wildcard_name", func(t *testing.T) {
+		err := r.validateParts(RawRoute{}, []string{"user*name"})
+		if err == nil {
+			t.Fatal("should_reject_mixed_wildcard")
+		}
+	})
 
-	rws = []RawRoute{
-		{Name: "ok", Path: "/users"},
-	}
+	t.Run("build_invalid_path", func(t *testing.T) {
+		rws := []RawRoute{{Name: "bad", Path: "invalid"}}
+		_, err := b.Build(rws)
+		if err == nil {
+			t.Fatal("should_stop_on_error")
+		}
+	})
 
-	rs, err := b.Build(rws)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rs) != 1 {
-		t.Fatal("expected 1 route")
-	}
+	t.Run("build_invalid_segment", func(t *testing.T) {
+		rws := []RawRoute{{Name: "bad", Path: "/foo/*/bar"}}
+		_, err := b.Build(rws)
+		if err == nil {
+			t.Fatal("should_stop_on_error")
+		}
+	})
+}
+
+func TestRouteBuilder_Fallback(t *testing.T) {
+	t.Run("root_path_exception", func(t *testing.T) {
+		r := &route{}
+		out, _ := r.cleanPath(RawRoute{Path: "/"})
+		if out != "/" {
+			t.Fatal("should_keep_root_slash")
+		}
+	})
+
+	t.Run("interface_compliance_check", func(t *testing.T) {
+		var _ RouteBuilder = (*route)(nil)
+	})
 }

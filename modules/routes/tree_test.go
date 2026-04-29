@@ -18,297 +18,225 @@ func newTestTreeBuilder() tree {
 	}
 }
 
-func TestNormalizePart_AllBranches(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	r := Route{Name: "r"}
-
-	k, kind, err := b.normalizePart(r, "*")
-	if err != nil || kind != "wildcard" || k != "*" {
-		t.Fatal("wildcard failed")
-	}
-
-	k, kind, err = b.normalizePart(r, ":id")
-	if err != nil || kind != "param" {
-		t.Fatal("param failed")
-	}
-
-	_, _, err = b.normalizePart(r, ":123")
-	if err == nil {
-		t.Fatal("expected invalid param")
-	}
-
-	_, _, err = b.normalizePart(r, "%%%")
-	if err == nil {
-		t.Fatal("expected invalid static")
-	}
-
-	k, kind, err = b.normalizePart(r, "user-profile")
-	if err != nil || k != "userProfile" {
-		t.Fatal("dash transform failed")
-	}
-
-	k, kind, err = b.normalizePart(r, "users")
-	if err != nil || k != "users" || kind != "static" {
-		t.Fatal("static failed")
-	}
-}
-
-func TestValidateChild_AllConflicts(t *testing.T) {
+func TestTreeBuilder_Success(t *testing.T) {
 	b := newTestTreeBuilder()
 	r := Route{Name: "r"}
 
-	current := map[string]*Node{
-		"a": {Kind: "wildcard"},
-	}
-	if b.validateChild(r, current, "static") == nil {
-		t.Fatal("wildcard conflict expected")
-	}
+	t.Run("normalize_wildcard_part", func(t *testing.T) {
+		k, kind, err := b.normalizePart(r, "*")
+		if err != nil || kind != "wildcard" || k != "*" {
+			t.Fatal("fail")
+		}
+	})
 
-	current = map[string]*Node{
-		"a": {Kind: "static"},
-	}
-	if b.validateChild(r, current, "param") == nil {
-		t.Fatal("param vs static conflict expected")
-	}
+	t.Run("normalize_param_part", func(t *testing.T) {
+		_, kind, err := b.normalizePart(r, ":id")
+		if err != nil || kind != "param" {
+			t.Fatal("fail")
+		}
+	})
 
-	current = map[string]*Node{
-		"a": {Kind: "param"},
-	}
-	if b.validateChild(r, current, "static") == nil {
-		t.Fatal("static vs param conflict expected")
-	}
+	t.Run("transform_dash_segment", func(t *testing.T) {
+		k, _, err := b.normalizePart(r, "user-profile")
+		if err != nil || k != "userProfile" {
+			t.Fatal("fail")
+		}
+	})
 
-	current = map[string]*Node{
-		"a": {Kind: "param"},
-	}
-	if b.validateChild(r, current, "param") == nil {
-		t.Fatal("param vs param conflict expected")
-	}
-}
+	t.Run("normalize_static_part", func(t *testing.T) {
+		k, kind, err := b.normalizePart(r, "users")
+		if err != nil || k != "users" || kind != "static" {
+			t.Fatal("fail")
+		}
+	})
 
-func TestInsert_ConflictsAndDuplicate(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	tr := map[string]*Node{}
-
-	r := Route{Name: "r1", Path: "/users", Parts: []string{"users"}}
-	if err := b.insert(r, tr); err != nil {
-		t.Fatal(err)
-	}
-
-	r2 := Route{Name: "r2", Path: "/users2", Parts: []string{"users"}}
-	if err := b.insert(r2, tr); err == nil {
-		t.Fatal("expected duplicate route error")
-	}
-
-	tr = map[string]*Node{}
-	r3 := Route{Name: "r3", Path: "/user-profile", Parts: []string{"user-profile"}}
-	r4 := Route{Name: "r4", Path: "/userProfile", Parts: []string{"userProfile"}}
-
-	if err := b.insert(r3, tr); err != nil {
-		t.Fatal(err)
-	}
-	if err := b.insert(r4, tr); err == nil {
-		t.Fatal("expected conflicting key error")
-	}
-}
-
-func TestToMap_WithRootAndChildren(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	tr := map[string]*Node{
-		"users": {
-			Root: "/users",
-			Children: map[string]*Node{
-				"list": {
-					Root:     "/users/list",
-					Children: map[string]*Node{},
+	t.Run("tomap_nested_children", func(t *testing.T) {
+		tr := map[string]*Node{
+			"users": {
+				Root: "/users",
+				Children: map[string]*Node{
+					"list": {Root: "/users/list", Children: map[string]*Node{}},
 				},
 			},
-		},
-	}
+		}
+		m := b.toMap(tr)
+		if m["users"] == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	m := b.toMap(tr)
+	t.Run("selector_map_value", func(t *testing.T) {
+		b.cfg.Prefix = "api"
+		tr := map[string]any{"api": map[string]any{"users": map[string]any{"path": "/u"}}}
+		sel := b.createSelector(tr)
+		m, err := sel("users")
+		if err != nil || m == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	if m["users"] == nil {
-		t.Fatal("users missing")
-	}
+	t.Run("selector_string_value", func(t *testing.T) {
+		b.cfg.Prefix = "api"
+		tr := map[string]any{"api": map[string]any{"plain": "/p"}}
+		sel := b.createSelector(tr)
+		m, err := sel("plain")
+		if err != nil || m["path"] != "/p" {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("build_valid_routes", func(t *testing.T) {
+		rs := []Route{{Name: "a", Path: "/u", Parts: []string{"u"}}}
+		_, sel, err := b.Build(rs)
+		if err != nil || sel == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("selector_magic_suffixes", func(t *testing.T) {
+		b.cfg.Prefix = "api"
+		tr := map[string]any{"api": map[string]any{"users": map[string]any{"$": "/u"}}}
+		sel := b.createSelector(tr)
+		suffixes := []string{"", "users$", "users.", "users?", "users?.$"}
+		for _, s := range suffixes {
+			if _, err := sel(s); err != nil {
+				t.Fatal("fail")
+			}
+		}
+	})
 }
 
-func TestCreateSelector_AllBranches(t *testing.T) {
+func TestTreeBuilder_Error(t *testing.T) {
 	b := newTestTreeBuilder()
-	b.cfg.Prefix = "api"
+	r := Route{Name: "r"}
 
-	tr := map[string]any{
-		"api": map[string]any{
-			"users": map[string]any{
-				"path": "/users",
-			},
-			"plain": "/plain",
-		},
-	}
+	t.Run("invalid_param_name", func(t *testing.T) {
+		if _, _, err := b.normalizePart(r, ":123"); err == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	sel := b.createSelector(tr)
+	t.Run("invalid_static_segment", func(t *testing.T) {
+		if _, _, err := b.normalizePart(r, "%%%"); err == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	m, err := sel("users")
-	if err != nil || m == nil {
-		t.Fatal("map selector failed")
-	}
+	t.Run("wildcard_level_conflict", func(t *testing.T) {
+		curr := map[string]*Node{"a": {Kind: "wildcard"}}
+		if b.validateChild(r, curr, "static") == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	m, err = sel("plain")
-	if err != nil || m["path"] != "/plain" {
-		t.Fatal("string selector failed")
-	}
+	t.Run("param_static_conflict", func(t *testing.T) {
+		curr := map[string]*Node{"a": {Kind: "static"}}
+		if b.validateChild(r, curr, "param") == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	_, err = sel("notfound")
-	if err == nil {
-		t.Fatal("expected not found")
-	}
+	t.Run("static_param_conflict", func(t *testing.T) {
+		curr := map[string]*Node{"a": {Kind: "param"}}
+		if b.validateChild(r, curr, "static") == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("multiple_param_conflict", func(t *testing.T) {
+		curr := map[string]*Node{"a": {Kind: "param"}}
+		if b.validateChild(r, curr, "param") == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("duplicate_route_path", func(t *testing.T) {
+		tr := map[string]*Node{}
+		b.insert(Route{Path: "/u1", Parts: []string{"u"}}, tr)
+		if b.insert(Route{Path: "/u2", Parts: []string{"u"}}, tr) == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("conflicting_key_segments", func(t *testing.T) {
+		tr := map[string]*Node{}
+		b.insert(Route{Parts: []string{"user-s"}}, tr)
+		if b.insert(Route{Parts: []string{"userS"}}, tr) == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("selector_not_found", func(t *testing.T) {
+		b.cfg.Prefix = "api"
+		sel := b.createSelector(map[string]any{"api": map[string]any{}})
+		if _, err := sel("notfound"); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("build_invalid_parts", func(t *testing.T) {
+		rs := []Route{{Parts: []string{"%%%"}}}
+		if _, _, err := b.Build(rs); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("selector_invalid_type", func(t *testing.T) {
+		b.cfg.Prefix = "api"
+		sel := b.createSelector(map[string]any{"api": map[string]any{"num": 123}})
+		if _, err := sel("num"); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("build_duplicate_level", func(t *testing.T) {
+		rs := []Route{
+			{Path: "/u", Parts: []string{"u"}},
+			{Path: "/a", Parts: []string{"u"}},
+		}
+		if _, _, err := b.Build(rs); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("build_wildcard_conflict", func(t *testing.T) {
+		rs := []Route{
+			{Path: "/x/*", Parts: []string{"*"}},
+			{Path: "/x/u", Parts: []string{"u"}},
+		}
+		if _, _, err := b.Build(rs); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("build_param_conflict", func(t *testing.T) {
+		rs := []Route{
+			{Path: "/u", Parts: []string{"u"}},
+			{Path: "/:id", Parts: []string{":id"}},
+		}
+		if _, _, err := b.Build(rs); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("build_multi_param", func(t *testing.T) {
+		rs := []Route{
+			{Path: "/:id", Parts: []string{":id"}},
+			{Path: "/:name", Parts: []string{":name"}},
+		}
+		if _, _, err := b.Build(rs); err == nil {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func TestBuild_ErrorAndSuccess(t *testing.T) {
+func TestTreeBuilder_Fallback(t *testing.T) {
 	b := newTestTreeBuilder()
 
-	rs := []Route{
-		{Name: "a", Path: "/a", Parts: []string{"%%%"}},
-	}
-
-	_, _, err := b.Build(rs)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-
-	rs = []Route{
-		{Name: "a", Path: "/users", Parts: []string{"users"}},
-	}
-
-	_, sel, err := b.Build(rs)
-	if err != nil || sel == nil {
-		t.Fatal("build failed")
-	}
-}
-
-func TestToMap_SkipNilNode(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	tr := map[string]*Node{
-		"a": nil,
-	}
-
-	m := b.toMap(tr)
-
-	if len(m) != 0 {
-		t.Fatal("nil Node should be skipped")
-	}
-}
-
-func TestInsert_ExistingKeyDifferentSegment(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	tr := map[string]*Node{}
-
-	r1 := Route{Name: "r1", Path: "/x", Parts: []string{"user-s"}}
-	if err := b.insert(r1, tr); err != nil {
-		t.Fatal(err)
-	}
-
-	r2 := Route{Name: "r2", Path: "/x", Parts: []string{"userS"}}
-
-	if err := b.insert(r2, tr); err == nil {
-		t.Fatal("expected conflicting segment error")
-	}
-}
-
-func TestCreateSelector_RootAndWeirdSuffixes(t *testing.T) {
-	b := newTestTreeBuilder()
-	b.cfg.Prefix = "api"
-
-	tr := map[string]any{
-		"api": map[string]any{
-			"users": map[string]any{
-				"$": "/users",
-			},
-			"num": 123,
-		},
-	}
-
-	sel := b.createSelector(tr)
-
-	if _, err := sel(""); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := sel("users$"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := sel("users."); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := sel("users?"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := sel("users?.$"); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := sel("num"); err == nil {
-		t.Fatal("expected invalid type error")
-	}
-}
-
-func TestBuild_DuplicateRouteSameLevel(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	rs := []Route{
-		{Name: "r1", Path: "/users", Parts: []string{"users"}},
-		{Name: "r2", Path: "/admin", Parts: []string{"users"}},
-	}
-
-	_, _, err := b.Build(rs)
-	if err == nil {
-		t.Fatal("expected duplicate route error")
-	}
-}
-
-func TestBuild_WildcardConflict(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	rs := []Route{
-		{Name: "r1", Path: "/x/*", Parts: []string{"*"}},
-		{Name: "r2", Path: "/x/users", Parts: []string{"users"}},
-	}
-
-	_, _, err := b.Build(rs)
-	if err == nil {
-		t.Fatal("expected wildcard conflict error")
-	}
-}
-
-func TestBuild_ParamStaticConflict(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	rs := []Route{
-		{Name: "r1", Path: "/users", Parts: []string{"users"}},
-		{Name: "r2", Path: "/:id", Parts: []string{":id"}},
-	}
-
-	_, _, err := b.Build(rs)
-	if err == nil {
-		t.Fatal("expected param/static conflict error")
-	}
-}
-
-func TestBuild_MultipleParamConflict(t *testing.T) {
-	b := newTestTreeBuilder()
-
-	rs := []Route{
-		{Name: "r1", Path: "/:id", Parts: []string{":id"}},
-		{Name: "r2", Path: "/:name", Parts: []string{":name"}},
-	}
-
-	_, _, err := b.Build(rs)
-	if err == nil {
-		t.Fatal("expected multiple param conflict error")
-	}
+	t.Run("skip_nil_node", func(t *testing.T) {
+		m := b.toMap(map[string]*Node{"a": nil})
+		if len(m) != 0 {
+			t.Fatal("fail")
+		}
+	})
 }

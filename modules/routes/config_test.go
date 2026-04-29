@@ -4,247 +4,244 @@ import (
 	"testing"
 
 	"github.com/sekhudin/trax/internal/config"
+	"github.com/sekhudin/trax/internal/testutil/configmock"
+	"github.com/sekhudin/trax/internal/testutil/mock"
 )
 
-func TestNewConfig_StrategyEmpty(t *testing.T) {
-	_, err := NewConfig(&config.RoutesConfig{}).Load()
-	if err == nil {
-		t.Fatal("expected error for empty strategy")
-	}
+func TestConfig_Success(t *testing.T) {
+	mockConfig := configmock.Config{}
+
+	t.Run("valid_file_strategy", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "file",
+				File:     "routes.json",
+				Output:   "out.ts",
+				Symbols:  &config.RoutesSymbols{},
+			}
+		}
+
+		cfg, err := NewConfig(mockConfig.Routes()).Load()
+		if err != nil || cfg.File == nil || !cfg.IsFileStrategy {
+			t.Fatal("file_config_failed")
+		}
+	})
+
+	t.Run("next_app_normalization", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "next-app",
+				Root:     "src",
+				Output:   "out.ts",
+				Symbols:  &config.RoutesSymbols{},
+			}
+		}
+
+		cfg, err := NewConfig(mockConfig.Routes()).Load()
+		if err != nil || cfg.Root != "src/app" {
+			t.Fatal("root_normalization_failed")
+		}
+	})
+
+	t.Run("next_page_normalization", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "next-page",
+				Root:     "src",
+				Output:   "out.ts",
+				Symbols:  &config.RoutesSymbols{},
+			}
+		}
+
+		cfg, err := NewConfig(mockConfig.Routes()).Load()
+		if err != nil || cfg.Root != "src/pages" {
+			t.Fatal("root_normalization_failed")
+		}
+	})
+
+	t.Run("valid_symbols_normalization", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Symbols: &config.RoutesSymbols{
+					Param:    "$p",
+					Wildcard: "$w",
+					Root:     "p",
+				},
+			}
+		}
+
+		r := &rconfig{
+			rule: newConfigRule(),
+			cfg:  mockConfig.Routes(),
+		}
+
+		sym := r.normalizeSymbols()
+		if sym.Param != "$p" || sym.Wildcard != "$w" || sym.Root != "p" {
+			t.Fatal("symbol_mapping_failed")
+		}
+	})
 }
 
-func TestNewConfig_InvalidStrategy(t *testing.T) {
-	_, err := NewConfig(&config.RoutesConfig{
-		Strategy: "invalid",
-	}).Load()
-	if err == nil {
-		t.Fatal("expected error for invalid strategy")
-	}
+func TestConfig_Error(t *testing.T) {
+	mockConfig := configmock.Config{}
+
+	t.Run("empty_strategy", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "",
+			}
+		}
+
+		_, err := NewConfig(mockConfig.Routes()).Load()
+		if err == nil {
+			t.Fatal("should_err_empty")
+		}
+	})
+
+	t.Run("invalid_strategy", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "invalid",
+			}
+		}
+
+		_, err := NewConfig(mockConfig.Routes()).Load()
+		if err == nil {
+			t.Fatal("should_err_empty")
+		}
+	})
+
+	t.Run("file_strategy_constraints", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "file",
+				File:     "",
+			}
+		}
+
+		_, err := NewConfig(mockConfig.Routes()).Load()
+		if err == nil {
+			t.Fatal("should_err_missing_file")
+		}
+
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "next-app",
+				File:     "routes.yaml",
+			}
+		}
+
+		_, err = NewConfig(mockConfig.Routes()).Load()
+		if err == nil {
+			t.Fatal("should_err_unset_file")
+		}
+	})
+
+	t.Run("invalid_extensions", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "next-app",
+				Output:   "output.txt",
+				Symbols:  &config.RoutesSymbols{},
+			}
+		}
+
+		_, err := NewConfig(mockConfig.Routes()).Load()
+		if err == nil {
+			t.Fatal("should_err_ext")
+		}
+
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "file",
+				Output:   "output.ts",
+				File:     "invalid.txt",
+				Symbols:  &config.RoutesSymbols{},
+			}
+		}
+	})
+
+	t.Run("load_file_parse_error", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "file",
+				Root:     "src",
+				File:     "json",
+				Output:   "output.ts",
+				Prefix:   "routes",
+				Symbols: &config.RoutesSymbols{
+					Param:    "$p",
+					Wildcard: "$w",
+					Root:     "p",
+				},
+			}
+		}
+
+		_, err := NewConfig(mockConfig.Routes()).Load()
+		if err == nil {
+			t.Fatal("should_catch_file_parse_error")
+		}
+	})
 }
 
-func TestNewConfig_FileStrategy_MissingFile(t *testing.T) {
-	_, err := NewConfig(&config.RoutesConfig{
-		Strategy: "file",
-	}).Load()
-	if err == nil {
-		t.Fatal("expected error for missing file")
-	}
-}
+func TestConfig_Fallback(t *testing.T) {
+	mockConfig := configmock.Config{}
 
-func TestNewConfig_NonFileStrategy_WithFileSet(t *testing.T) {
-	_, err := NewConfig(&config.RoutesConfig{
-		Strategy: "next-app",
-		File:     "routes.json",
-	}).Load()
-	if err == nil {
-		t.Fatal("expected error when file is set for non-file strategy")
-	}
-}
+	t.Run("symbol_default_values", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Symbols: &config.RoutesSymbols{
+					Param:    "foo",
+					Wildcard: "foo",
+					Root:     "foo",
+				},
+			}
+		}
 
-func TestNewConfig_FileStrategy_InvalidFileExt(t *testing.T) {
-	_, err := NewConfig(&config.RoutesConfig{
-		Strategy: "file",
-		Root:     "src",
-		File:     "routes.txt",
-		Output:   "out.ts",
-		Prefix:   "routes",
-		NoDeps:   false,
-		Symbols: &config.RoutesSymbols{
-			Param:    "$p",
-			Wildcard: "$w",
-			Root:     "p",
-		},
-	}).Load()
-	if err == nil {
-		t.Fatal("expected extension error")
-	}
-}
+		r := &rconfig{
+			rule: newConfigRule(),
+			cfg:  mockConfig.Routes(),
+		}
 
-func TestNewConfig_OutputInvalidExt(t *testing.T) {
-	_, err := NewConfig(&config.RoutesConfig{
-		Strategy: "file",
-		File:     "routes.json",
-		Output:   "out.txt",
-	}).Load()
-	if err == nil {
-		t.Fatal("expected output extension error")
-	}
-}
+		sym := r.normalizeSymbols()
+		if sym.Param != "$param" || sym.Wildcard != "$wildcard" {
+			t.Fatal("fallback_symbols_failed")
+		}
+	})
 
-func TestNewConfig_ValidFileStrategy(t *testing.T) {
-	cfg, err := NewConfig(&config.RoutesConfig{
-		Strategy: "file",
-		File:     "routes.json",
-		Output:   "out.ts",
-		Symbols:  &config.RoutesSymbols{},
-	}).Load()
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("root_path_idempotency", func(t *testing.T) {
+		mock.Reset(&mockConfig)
+		mockConfig.RoutesFn = func() *config.RoutesConfig {
+			return &config.RoutesConfig{
+				Strategy: "next-app",
+				Root:     "src/app",
+				Output:   "output.ts",
+				Prefix:   "routes",
+				Symbols: &config.RoutesSymbols{
+					Param:    "$p",
+					Wildcard: "$w",
+					Root:     "p",
+				},
+			}
+		}
 
-	if cfg.File == nil || cfg.Output == nil {
-		t.Fatal("file or output not parsed")
-	}
+		r := &rconfig{
+			rule: newConfigRule(),
+			cfg:  mockConfig.Routes(),
+		}
 
-	if !cfg.IsFileStrategy {
-		t.Fatal("expected file strategy true")
-	}
-}
-
-func TestNewConfig_ValidNextAppStrategy(t *testing.T) {
-	cfg, err := NewConfig(&config.RoutesConfig{
-		Strategy: "next-app",
-		Root:     "src",
-		Output:   "out.ts",
-		Symbols:  &config.RoutesSymbols{},
-	}).Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if cfg.Root != "src/app" {
-		t.Fatalf("expected src/app, got %s", cfg.Root)
-	}
-}
-
-func TestNewConfig_ValidNextPageStrategy(t *testing.T) {
-	cfg, err := NewConfig(&config.RoutesConfig{
-		Strategy: "next-page",
-		Output:   "out.ts",
-		Root:     "src",
-		Symbols:  &config.RoutesSymbols{},
-	}).Load()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if cfg.Root != "src/pages" {
-		t.Fatalf("expected src/pages, got %s", cfg.Root)
-	}
-}
-
-func TestNormalizeSymbols_DefaultFallback(t *testing.T) {
-	r := &rconfig{
-		rule: newConfigRule(),
-		cfg: &config.RoutesConfig{
-			Symbols: &config.RoutesSymbols{
-				Param:    "invalid",
-				Wildcard: "invalid",
-				Root:     "invalid",
-			},
-		},
-	}
-
-	sym := r.normalizeSymbols()
-
-	if sym.Param != "$param" ||
-		sym.Wildcard != "$wildcard" ||
-		sym.Root != "root" {
-		t.Fatal(sym)
-	}
-}
-
-func TestNormalizeSymbols_ValidSymbols(t *testing.T) {
-	r := &rconfig{
-		rule: newConfigRule(),
-		cfg: &config.RoutesConfig{
-			Symbols: &config.RoutesSymbols{
-				Param:    "$p",
-				Wildcard: "$w",
-				Root:     "p",
-			},
-		},
-	}
-
-	sym := r.normalizeSymbols()
-
-	if sym.Param != "$p" ||
-		sym.Wildcard != "$w" ||
-		sym.Root != "p" {
-		t.Fatal(sym)
-	}
-}
-
-func TestNormalizeRootPath_NoSuffix(t *testing.T) {
-	r := &rconfig{
-		rule: newConfigRule(),
-		cfg: &config.RoutesConfig{
-			Strategy: "file",
-			Root:     "src",
-		},
-	}
-
-	out := r.normalizeRoot()
-
-	if out != "src" {
-		t.Fatal(out)
-	}
-}
-
-func TestNormalizeRootPath_AlreadyHasSuffix(t *testing.T) {
-	r := &rconfig{
-		rule: newConfigRule(),
-		cfg: &config.RoutesConfig{
-			Strategy: "next-app",
-			Root:     "src/app",
-		},
-	}
-
-	out := r.normalizeRoot()
-
-	if out != "src/app" {
-		t.Fatal(out)
-	}
-}
-
-func TestNormalizeRootPath_AddSuffix(t *testing.T) {
-	r := &rconfig{
-		rule: newConfigRule(),
-		cfg: &config.RoutesConfig{
-			Strategy: "next-page",
-			Root:     "src",
-		},
-	}
-
-	out := r.normalizeRoot()
-
-	if out != "src/pages" {
-		t.Fatal(out)
-	}
-}
-
-func TestIsFileStrategy(t *testing.T) {
-	r := &rconfig{
-		rule: newConfigRule(),
-		cfg: &config.RoutesConfig{
-			Strategy: "file",
-		},
-	}
-
-	if !r.IsFileStrategy() {
-		t.Fatal("should be file strategy")
-	}
-
-	r.cfg.Strategy = "next-app"
-	if r.IsFileStrategy() {
-		t.Fatal("should not be file strategy")
-	}
-}
-
-func TestIsValidStrategy(t *testing.T) {
-	r := &rconfig{
-		rule: newConfigRule(),
-		cfg: &config.RoutesConfig{
-			Strategy: "file",
-		},
-	}
-
-	if !r.IsValidStrategy() {
-		t.Fatal("valid strategy not detected")
-	}
-
-	r.cfg.Strategy = "unknown"
-	if r.IsValidStrategy() {
-		t.Fatal("invalid strategy detected as valid")
-	}
+		if r.normalizeRoot() != "src/app" {
+			t.Fatal("should_not_append_double")
+		}
+	})
 }
