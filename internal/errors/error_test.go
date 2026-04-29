@@ -6,6 +6,10 @@ import (
 	"testing"
 )
 
+func errWith(code ErrorCode) *CoreError {
+	return &CoreError{Code: code}
+}
+
 func TestCoreError_Success(t *testing.T) {
 	t.Run("format_only_code", func(t *testing.T) {
 		e := &CoreError{Code: ErrInternal}
@@ -40,6 +44,29 @@ func TestCoreError_Success(t *testing.T) {
 		e := &CoreError{Err: root}
 		if !errors.Is(e, root) {
 			t.Fatal("unwrap_failed")
+		}
+	})
+
+	t.Run("check_logic_is", func(t *testing.T) {
+		e := errWith(ErrInternal)
+
+		if !errors.Is(e, errWith(ErrInternal)) {
+			t.Fatal("should_match_code")
+		}
+
+		if errors.Is(e, errWith(ErrIO)) {
+			t.Fatal("should_not_match")
+		}
+	})
+}
+
+func TestCoreError_Fallback(t *testing.T) {
+	t.Run("is_different_type", func(t *testing.T) {
+		e := errWith(ErrInternal)
+		standardErr := errors.New("standard error")
+
+		if errors.Is(e, standardErr) {
+			t.Fatal("type_mismatch_failed")
 		}
 	})
 }

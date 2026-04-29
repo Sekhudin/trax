@@ -15,7 +15,7 @@ type config struct {
 }
 
 func LoadConfig(cfgFile string) error {
-	cfg := defConfig()
+	cfg := defaultConfig()
 	viper.SetDefault("formatter", cfg.formatter)
 	viper.SetDefault("routes", cfg.routes)
 	viper.SetDefault("formatters", cfg.formatters)
@@ -46,7 +46,7 @@ func LoadConfig(cfgFile string) error {
 	return nil
 }
 
-func defConfig() *config {
+func defaultConfig() *config {
 	return &config{
 		formatter: "biome",
 		routes: map[string]any{

@@ -47,6 +47,14 @@ func (e *CoreError) Error() string {
 	return base
 }
 
+func (e *CoreError) Is(target error) bool {
+	t, ok := target.(*CoreError)
+	if !ok {
+		return false
+	}
+	return e.Code == t.Code
+}
+
 func (e *CoreError) Unwrap() error {
 	return e.Err
 }
