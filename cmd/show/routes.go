@@ -77,7 +77,6 @@ func (c *routesctx) PreRunE(cmd *cobra.Command) error {
 
 	cfg, err := c.routeConfig(c.config().Routes()).Load()
 	if err != nil {
-		fmt.Println("BELUM DI CHECK KE SINI 1")
 		return err
 	}
 
@@ -92,33 +91,27 @@ func (c *routesctx) RunE(cmd *cobra.Command) error {
 
 	key, err := flags.GetString("key")
 	if err != nil {
-		fmt.Println("BELUM DI CHECK KE SINI 2")
 		return err
 	}
 
 	asJSON, err := flags.GetBool("json")
 	if err != nil {
-		fmt.Println("BELUM DI CHECK KE SINI 3")
 		return err
 	}
 
 	r, err := c.routeBuilder(c.cfg).Build()
 	if err != nil {
-		fmt.Println("BELUM DI CHECK KE SINI 4")
 		return err
 	}
 
 	val, err := r.Select(key)
 	if err != nil {
-		fmt.Println("BELUM DI CHECK KE SINI 5")
 		return err
 	}
 
 	if asJSON {
 		c.ctx.Out().AsJSON(val)
-		fmt.Println("BELUM DI CHECK KE SINI 6")
 	} else {
-		fmt.Println("BELUM DI CHECK KE SINI 7")
 		c.ctx.Out().AsFlat("", val)
 	}
 

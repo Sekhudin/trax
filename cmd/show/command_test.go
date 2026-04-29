@@ -6,93 +6,107 @@ import (
 	"github.com/sekhudin/trax/internal/app"
 	"github.com/sekhudin/trax/internal/doc"
 	"github.com/sekhudin/trax/internal/testutil/appmock"
+	"github.com/sekhudin/trax/internal/testutil/mock"
 )
 
-func Test_DefaultDependencies_structure(t *testing.T) {
-	d := DefaultDependencies()
+func TestShow_Success(t *testing.T) {
+	ctx := appmock.NewContext()
 
-	if d.Docs == nil {
-		t.Fatal("Docs nil")
-	}
+	t.Run("default_deps_structure", func(t *testing.T) {
+		mock.Reset(ctx)
 
-	if d.Docs.Root.Use != "show" {
-		t.Fatal("root docs wrong")
-	}
+		d := DefaultDependencies()
+		if d.Docs == nil || d.NewConfigCtx == nil || d.NewRoutesCtx == nil {
+			t.Fatal("fail")
+		}
 
-	if d.Docs.Config.Use != "config" {
-		t.Fatal("config docs wrong")
-	}
+		if d.Docs.Root.Use != "show" || d.Docs.Config.Use != "config" || d.Docs.Routes.Use != "routes" {
+			t.Fatal("fail")
+		}
+	})
 
-	if d.Docs.Routes.Use != "routes" {
-		t.Fatal("routes docs wrong")
-	}
+	t.Run("build_command_tree", func(t *testing.T) {
+		mock.Reset(ctx)
 
-	if d.NewConfigCtx == nil {
-		t.Fatal("NewConfigCtx nil")
-	}
+		NewConfigCalled, NewRoutesCalled := false, false
 
-	if d.NewRoutesCtx == nil {
-		t.Fatal("NewRoutesCtx nil")
-	}
+		deps := &Dependencies{
+			Docs: &Docs{
+				Root:   doc.Docs{Use: "root"},
+				Config: doc.Docs{Use: "cfg"},
+				Routes: doc.Docs{Use: "rts"},
+			},
+			NewConfigCtx: func(app.Context) ConfigCtx {
+				NewConfigCalled = true
+				return &mockConfigCtx{}
+			},
+			NewRoutesCtx: func(app.Context) RoutesCtx {
+				NewRoutesCalled = true
+				return &mockRoutesCtx{}
+			},
+		}
+
+		cmd := NewWithDependencies(ctx, deps)
+		if cmd.Use != "root" || len(cmd.Commands()) != 2 {
+			t.Fatal("fail")
+		}
+
+		if !NewConfigCalled || !NewRoutesCalled {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("new_default_instance", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		cmd := New(ctx)
+		if cmd.Use != "show" || len(cmd.Commands()) != 2 {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func Test_NewWithDependencies_builds_command_tree(t *testing.T) {
-	calledConfig := false
-	calledRoutes := false
+func TestShow_Error(t *testing.T) {
+	t.Run("command_attachment_check", func(t *testing.T) {
+		deps := &Dependencies{
+			Docs: &Docs{
+				Root:   doc.Docs{Use: "root"},
+				Config: doc.Docs{Use: "cfg"},
+				Routes: doc.Docs{Use: "rts"},
+			},
 
-	deps := &Dependencies{
-		Docs: &Docs{
-			Root:   doc.Docs{Use: "root"},
-			Config: doc.Docs{Use: "cfg"},
-			Routes: doc.Docs{Use: "rts"},
-		},
-		NewConfigCtx: func(app.Context) ConfigCtx {
-			calledConfig = true
-			return &mockConfigCtx{}
-		},
-		NewRoutesCtx: func(app.Context) RoutesCtx {
-			calledRoutes = true
-			return &mockRoutesCtx{}
-		},
-	}
+			NewConfigCtx: func(app.Context) ConfigCtx {
+				return &mockConfigCtx{}
+			},
 
-	cmd := NewWithDependencies(appmock.NewContext(), deps)
+			NewRoutesCtx: func(app.Context) RoutesCtx {
+				return &mockRoutesCtx{}
+			},
+		}
 
-	if cmd.Use != "root" {
-		t.Fatalf("unexpected root use: %s", cmd.Use)
-	}
+		cmd := NewWithDependencies(appmock.NewContext(), deps)
 
-	children := cmd.Commands()
-	if len(children) != 2 {
-		t.Fatalf("expected 2 subcommands, got %d", len(children))
-	}
-
-	if children[0].Use != "cfg" && children[1].Use != "cfg" {
-		t.Fatal("config command not attached")
-	}
-
-	if children[0].Use != "rts" && children[1].Use != "rts" {
-		t.Fatal("routes command not attached")
-	}
-
-	if !calledConfig {
-		t.Fatal("NewConfigCtx not called")
-	}
-
-	if !calledRoutes {
-		t.Fatal("NewRoutesCtx not called")
-	}
+		foundCfg, foundRts := false, false
+		for _, c := range cmd.Commands() {
+			if c.Use == "cfg" {
+				foundCfg = true
+			}
+			if c.Use == "rts" {
+				foundRts = true
+			}
+		}
+		if !foundCfg || !foundRts {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func Test_New_uses_DefaultDependencies(t *testing.T) {
-	cmd := New(appmock.NewContext())
+func TestShow_Fallback(t *testing.T) {
+	t.Run("verify_subcommand_uses", func(t *testing.T) {
+		d := DefaultDependencies()
 
-	if cmd.Use != "show" {
-		t.Fatalf("expected root 'show', got %s", cmd.Use)
-	}
-
-	children := cmd.Commands()
-	if len(children) != 2 {
-		t.Fatalf("expected 2 subcommands, got %d", len(children))
-	}
+		if d.Docs.Config.Use != "config" || d.Docs.Routes.Use != "routes" {
+			t.Fatal("fail")
+		}
+	})
 }

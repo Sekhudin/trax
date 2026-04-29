@@ -9,6 +9,7 @@ import (
 	"github.com/sekhudin/trax/internal/testutil/appmock"
 	"github.com/sekhudin/trax/internal/testutil/cobramock"
 	"github.com/sekhudin/trax/internal/testutil/configmock"
+	"github.com/sekhudin/trax/internal/testutil/mock"
 	"github.com/sekhudin/trax/internal/testutil/routesmock"
 	"github.com/sekhudin/trax/modules/routes"
 	"github.com/spf13/cobra"
@@ -17,6 +18,11 @@ import (
 type mockRoutesCtx struct {
 	PreRunECalled bool
 	RunECalled    bool
+}
+
+func (m *mockRoutesCtx) Reset() {
+	m.PreRunECalled = false
+	m.RunECalled = false
 }
 
 func (m *mockRoutesCtx) PreRunE(cmd *cobra.Command) error {
@@ -31,7 +37,6 @@ func (m *mockRoutesCtx) RunE(cmd *cobra.Command) error {
 
 func newTestRoutesCmd(c RoutesCtx) *cobra.Command {
 	cmd := &cobra.Command{}
-
 	cmd.Flags().String("strategy", "", "")
 	cmd.Flags().String("root", "", "")
 	cmd.Flags().String("file", "", "")
@@ -41,6 +46,7 @@ func newTestRoutesCmd(c RoutesCtx) *cobra.Command {
 	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		return c.PreRunE(cmd)
 	}
+
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		return c.RunE(cmd)
 	}
@@ -48,251 +54,193 @@ func newTestRoutesCmd(c RoutesCtx) *cobra.Command {
 	return cmd
 }
 
-func Test_NewRoutesCtx_executes_internal_functions(t *testing.T) {
+func TestRoutes_Success(t *testing.T) {
 	ctx := appmock.NewContext()
+	mockConfig := configmock.Config{}
+	mockRoutesConfig := routesmock.RoutesConfig{}
+	mockBuilder := routesmock.Builder{}
 
-	c := NewRoutesCtx(ctx)
+	t.Run("new_ctx_initialization", func(t *testing.T) {
+		mock.Reset(ctx)
 
-	conf := c.(*routesctx).config()
-	if conf == nil {
-		t.Fatal("config nil")
-	}
+		c := NewRoutesCtx(ctx)
+		rctx := c.(*routesctx)
 
-	rc := &config.RoutesConfig{}
-	routesCfg := c.(*routesctx).routeConfig(rc)
-	if routesCfg == nil {
-		t.Fatal("routeConfig nil")
-	}
-
-	builder := c.(*routesctx).routeBuilder(&routes.Config{})
-	if builder == nil {
-		t.Fatal("routeBuilder nil")
-	}
-}
-
-func Test_NewRoutesCmd_flags_exist(t *testing.T) {
-	ctx := appmock.NewContext()
-	c := NewRoutesCtx(ctx)
-
-	cmd := NewRoutesCmd(&doc.Docs{}, c)
-
-	flags := []string{"strategy", "root", "file", "key", "json"}
-
-	for _, f := range flags {
-		if cmd.Flags().Lookup(f) == nil {
-			t.Fatalf("%s missing", f)
+		if rctx.config() == nil || rctx.routeConfig(&config.RoutesConfig{}) == nil || rctx.routeBuilder(&routes.Config{}) == nil {
+			t.Fatal("fail")
 		}
-	}
-}
+	})
 
-func Test_NewRoutesCmd_execute_full_path(t *testing.T) {
-	ctx := &mockRoutesCtx{}
-	cmd := NewRoutesCmd(&doc.Docs{}, ctx)
+	t.Run("cmd_flags_exist", func(t *testing.T) {
+		mock.Reset(ctx)
 
-	cmd.SetArgs([]string{})
-	err := cmd.Execute()
-	if err != nil {
-		t.Fatal(err)
-	}
+		cmd := NewRoutesCmd(&doc.Docs{}, NewRoutesCtx(ctx))
 
-	if !ctx.PreRunECalled {
-		t.Fatal("PreRunE not called")
-	}
-
-	if !ctx.RunECalled {
-		t.Fatal("RunE not called")
-	}
-}
-
-func Test_PreRunE_success(t *testing.T) {
-	ctx := appmock.NewContext()
-
-	c := &routesctx{
-		ctx: ctx,
-		config: func() config.Config {
-			return &configmock.Config{}
-		},
-		routeConfig: func(*config.RoutesConfig) routes.RoutesConfig {
-			return &routesmock.RoutesConfig{}
-		},
-	}
-
-	cmd := newTestRoutesCmd(c)
-
-	err := c.PreRunE(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if c.cfg == nil {
-		t.Fatal("cfg not set")
-	}
-
-	if !ctx.OutMock.InfoCalled {
-		t.Fatal("info not called")
-	}
-}
-
-func Test_PreRunE_load_error(t *testing.T) {
-	ctx := appmock.NewContext()
-
-	c := &routesctx{
-		ctx: ctx,
-		config: func() config.Config {
-			return &configmock.Config{}
-		},
-		routeConfig: func(*config.RoutesConfig) routes.RoutesConfig {
-			return &routesmock.RoutesConfig{
-				LoadFn: func() (*routes.Config, error) {
-					return nil, errors.New("boom")
-				},
+		flags := []string{"strategy", "root", "file", "key", "json"}
+		for _, f := range flags {
+			if cmd.Flags().Lookup(f) == nil {
+				t.Fatalf("missing %s", f)
 			}
-		},
-	}
+		}
+	})
 
-	err := c.PreRunE(newTestRoutesCmd(c))
-	if err == nil {
-		t.Fatal("expected error")
-	}
+	t.Run("cmd_execution_flow", func(t *testing.T) {
+		m := &mockRoutesCtx{}
+		cmd := NewRoutesCmd(&doc.Docs{}, m)
+
+		if err := cmd.Execute(); err != nil || !m.PreRunECalled || !m.RunECalled {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("prerun_load_config", func(t *testing.T) {
+		mock.Reset(ctx, &mockConfig, &mockRoutesConfig)
+
+		c := &routesctx{
+			ctx: ctx,
+			config: func() config.Config {
+				return &mockConfig
+			},
+			routeConfig: func(*config.RoutesConfig) routes.RoutesConfig {
+				return &mockRoutesConfig
+			},
+		}
+
+		if err := c.PreRunE(newTestRoutesCmd(c)); err != nil || c.cfg == nil || !ctx.OutMock.InfoCalled {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_flat_output", func(t *testing.T) {
+		mock.Reset(ctx, &mockBuilder)
+
+		c := &routesctx{
+			ctx: ctx,
+			cfg: &routes.Config{},
+			routeBuilder: func(*routes.Config) routes.Builder {
+				return &mockBuilder
+			},
+		}
+
+		cmd := newTestRoutesCmd(c)
+		_ = cmd.Flags().Set("json", "false")
+		if err := c.RunE(cmd); err != nil || !ctx.OutMock.AsFlatCalled {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_json_output", func(t *testing.T) {
+		mock.Reset(ctx, &mockBuilder)
+
+		c := &routesctx{
+			ctx: ctx,
+			cfg: &routes.Config{},
+			routeBuilder: func(*routes.Config) routes.Builder {
+				return &mockBuilder
+			},
+		}
+
+		cmd := newTestRoutesCmd(c)
+		_ = cmd.Flags().Set("json", "true")
+		if err := c.RunE(cmd); err != nil || !ctx.OutMock.AsJsonCalled {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func Test_RunE_flat_success(t *testing.T) {
+func TestRoutes_Error(t *testing.T) {
 	ctx := appmock.NewContext()
+	mockRoutesConfig := routesmock.RoutesConfig{}
+	mockBuilder := routesmock.Builder{}
 
-	c := &routesctx{
-		ctx: ctx,
-		cfg: &routes.Config{},
-		routeBuilder: func(*routes.Config) routes.Builder {
-			return &routesmock.Builder{}
-		},
-	}
+	t.Run("prerun_load_failure", func(t *testing.T) {
+		mock.Reset(ctx, &mockBuilder)
 
-	cmd := newTestRoutesCmd(c)
-	_ = cmd.Flags().Set("json", "false")
+		mockRoutesConfig.LoadFn = func() (*routes.Config, error) {
+			return nil, errors.New("boom")
+		}
 
-	err := c.RunE(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
+		c := &routesctx{
+			ctx:    ctx,
+			config: func() config.Config { return &configmock.Config{} },
+			routeConfig: func(rc *config.RoutesConfig) routes.RoutesConfig {
+				return &mockRoutesConfig
+			},
+		}
+		if err := c.PreRunE(newTestRoutesCmd(c)); err == nil {
+			t.Fatal("fail")
+		}
+	})
 
-	if !ctx.OutMock.AsFlatCalled {
-		t.Fatal("flat not called")
-	}
+	t.Run("rune_key_flag", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		c := &routesctx{ctx: ctx, cfg: &routes.Config{}}
+		cmd := newTestRoutesCmd(c)
+
+		cmd.Flags().Lookup("key").Value = &cobramock.FlagBroken{}
+		if err := c.RunE(cmd); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_json_flag", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		c := &routesctx{ctx: ctx, cfg: &routes.Config{}}
+		cmd := newTestRoutesCmd(c)
+
+		cmd.Flags().Lookup("json").Value = &cobramock.FlagBroken{}
+		if err := c.RunE(cmd); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_build_failure", func(t *testing.T) {
+		mock.Reset(ctx, &mockBuilder)
+
+		mockBuilder.BuildFn = func() (routes.BuildResult, error) {
+			return nil, errors.New("err")
+		}
+
+		c := &routesctx{
+			ctx: ctx,
+			cfg: &routes.Config{},
+			routeBuilder: func(*routes.Config) routes.Builder {
+				return &mockBuilder
+			},
+		}
+		if err := c.RunE(newTestRoutesCmd(c)); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_selector_failure", func(t *testing.T) {
+		mock.Reset(ctx, &mockBuilder)
+
+		mockBuilder.BuildFn = func() (routes.BuildResult, error) {
+			return &routesmock.BuildResult{
+				SelectFn: func(key string) (map[string]any, error) { return nil, errors.New("err") },
+			}, nil
+		}
+
+		c := &routesctx{
+			ctx: ctx,
+			cfg: &routes.Config{},
+			routeBuilder: func(*routes.Config) routes.Builder {
+				return &mockBuilder
+			},
+		}
+		if err := c.RunE(newTestRoutesCmd(c)); err == nil {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func Test_RunE_json_success(t *testing.T) {
-	ctx := appmock.NewContext()
-
-	c := &routesctx{
-		ctx: ctx,
-		cfg: &routes.Config{},
-		routeBuilder: func(*routes.Config) routes.Builder {
-			return &routesmock.Builder{}
-		},
-	}
-
-	cmd := newTestRoutesCmd(c)
-	_ = cmd.Flags().Set("json", "true")
-
-	err := c.RunE(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !ctx.OutMock.AsJsonCalled {
-		t.Fatal("json not called")
-	}
-}
-
-func Test_RunE_key_flag_error(t *testing.T) {
-	c := &routesctx{
-		ctx: appmock.NewContext(),
-		cfg: &routes.Config{},
-		routeBuilder: func(*routes.Config) routes.Builder {
-			t.Fatal("should not reach builder")
-			return nil
-		},
-	}
-
-	cmd := newTestRoutesCmd(c)
-	cmd.Flags().Lookup("key").Value = &cobramock.FlagBroken{}
-
-	err := c.RunE(cmd)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func Test_RunE_json_flag_error(t *testing.T) {
-	c := &routesctx{
-		ctx: &appmock.Context{},
-		cfg: &routes.Config{},
-		routeBuilder: func(*routes.Config) routes.Builder {
-			t.Fatal("should not reach builder")
-			return nil
-		},
-	}
-
-	cmd := newTestRoutesCmd(c)
-	cmd.Flags().Lookup("json").Value = &cobramock.FlagBroken{}
-
-	err := c.RunE(cmd)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func Test_RunE_build_error(t *testing.T) {
-	ctx := appmock.NewContext()
-
-	c := &routesctx{
-		ctx: ctx,
-		cfg: &routes.Config{},
-		routeBuilder: func(*routes.Config) routes.Builder {
-			return &routesmock.Builder{
-				BuildFn: func() (routes.BuildResult, error) {
-					return nil, errors.New("build error")
-				},
-			}
-		},
-	}
-
-	err := c.RunE(newTestRoutesCmd(c))
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func Test_RunE_selector_error(t *testing.T) {
-	ctx := appmock.NewContext()
-
-	c := &routesctx{
-		ctx: ctx,
-		cfg: &routes.Config{},
-		routeBuilder: func(*routes.Config) routes.Builder {
-			return &routesmock.Builder{
-				BuildFn: func() (routes.BuildResult, error) {
-					return &routesmock.BuildResult{
-						SelectFn: func(key string) (map[string]any, error) {
-							return nil, errors.New("select error")
-						},
-					}, nil
-				},
-			}
-		},
-	}
-
-	err := c.RunE(newTestRoutesCmd(c))
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func Test_NewRoutesCtx_smoke(t *testing.T) {
-	ctx := appmock.NewContext()
-
-	c := NewRoutesCtx(ctx)
-	if c == nil {
-		t.Fatal("nil ctx")
-	}
+func TestRoutes_Fallback(t *testing.T) {
+	t.Run("new_ctx_smoke", func(t *testing.T) {
+		if c := NewRoutesCtx(appmock.NewContext()); c == nil {
+			t.Fatal("fail")
+		}
+	})
 }

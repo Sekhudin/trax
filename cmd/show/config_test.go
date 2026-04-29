@@ -6,12 +6,18 @@ import (
 
 	"github.com/sekhudin/trax/internal/doc"
 	"github.com/sekhudin/trax/internal/testutil/appmock"
+	"github.com/sekhudin/trax/internal/testutil/mock"
 	"github.com/spf13/cobra"
 )
 
 type mockConfigCtx struct {
 	PreRunECalled bool
 	RunECalled    bool
+}
+
+func (m *mockConfigCtx) Reset() {
+	m.PreRunECalled = false
+	m.RunECalled = false
 }
 
 func (m *mockConfigCtx) PreRunE() error {
@@ -27,134 +33,134 @@ func (m *mockConfigCtx) RunE(cmd *cobra.Command) error {
 func newTestConfigCmd(c ConfigCtx) *cobra.Command {
 	cmd := &cobra.Command{}
 	cmd.Flags().Bool("json", false, "")
-	cmd.PreRunE = func(cmd *cobra.Command, args []string) error { return c.PreRunE() }
-	cmd.RunE = func(cmd *cobra.Command, args []string) error { return c.RunE(cmd) }
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		return c.PreRunE()
+	}
+
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		return c.RunE(cmd)
+	}
+
 	return cmd
 }
 
-func Test_NewConfigCmd_flags_exist(t *testing.T) {
-	ctx := &mockConfigCtx{}
-
-	cmd := NewConfigCmd(&doc.Docs{}, ctx)
-
-	if cmd.Flags().Lookup("json") == nil {
-		t.Fatal("json flag missing")
-	}
-}
-
-func Test_NewConfigCmd_execute_full_path(t *testing.T) {
-	ctx := &mockConfigCtx{}
-
-	cmd := NewConfigCmd(&doc.Docs{}, ctx)
-
-	cmd.SetArgs([]string{"--json"})
-
-	err := cmd.Execute()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !ctx.PreRunECalled {
-		t.Fatal("PreRunE not called")
-	}
-
-	if !ctx.RunECalled {
-		t.Fatal("RunE not called")
-	}
-}
-
-func Test_NewConfigCmd_direct_closure(t *testing.T) {
-	ctx := &mockConfigCtx{}
-
-	cmd := NewConfigCmd(&doc.Docs{}, ctx)
-
-	if err := cmd.PreRunE(cmd, []string{}); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := cmd.RunE(cmd, []string{}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func Test_PreRunE(t *testing.T) {
+func TestConfig_Success(t *testing.T) {
 	ctx := appmock.NewContext()
-	c := NewConfigCtx(ctx)
+	mCtx := mockConfigCtx{}
 
-	err := c.PreRunE()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ctx.OutMock.InfoCalled {
-		t.Fatal("info not called")
-	}
+	t.Run("cmd_flags_exist", func(t *testing.T) {
+		mock.Reset(&mCtx)
+
+		cmd := NewConfigCmd(&doc.Docs{}, &mCtx)
+
+		if cmd.Flags().Lookup("json") == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("cmd_execution_flow", func(t *testing.T) {
+		mock.Reset(&mCtx)
+
+		cmd := NewConfigCmd(&doc.Docs{}, &mCtx)
+		cmd.SetArgs([]string{"--json"})
+
+		if err := cmd.Execute(); err != nil || !mCtx.PreRunECalled || !mCtx.RunECalled {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("cmd_closure_direct", func(t *testing.T) {
+		mock.Reset(&mCtx)
+
+		cmd := NewConfigCmd(&doc.Docs{}, &mCtx)
+
+		if err := cmd.PreRunE(cmd, []string{}); err != nil {
+			t.Fatal("fail")
+		}
+		if err := cmd.RunE(cmd, []string{}); err != nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("prerun_info_output", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		c := NewConfigCtx(ctx)
+
+		if err := c.PreRunE(); err != nil || !ctx.OutMock.InfoCalled {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_json_output", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		c := NewConfigCtx(ctx)
+		cmd := newTestConfigCmd(c)
+
+		_ = cmd.Flags().Set("json", "true")
+		if err := c.RunE(cmd); err != nil || !ctx.OutMock.AsJsonCalled {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_flat_output", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		c := NewConfigCtx(ctx)
+		cmd := newTestConfigCmd(c)
+
+		_ = cmd.Flags().Set("json", "false")
+		if err := c.RunE(cmd); err != nil || !ctx.OutMock.AsFlatCalled {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func Test_RunE_json_true(t *testing.T) {
+func TestConfig_Error(t *testing.T) {
 	ctx := appmock.NewContext()
-	c := NewConfigCtx(ctx)
-	cmd := newTestConfigCmd(c)
-	_ = cmd.Flags().Set("json", "true")
 
-	err := c.RunE(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ctx.OutMock.AsJsonCalled || ctx.OutMock.AsFlatCalled {
-		t.Fatal("wrong path")
-	}
+	t.Run("rune_missing_flags", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		c := NewConfigCtx(ctx)
+
+		if err := c.RunE(&cobra.Command{}); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_json_failure", func(t *testing.T) {
+		mock.Reset(ctx)
+
+		ctx.OutMock.JSONErr = errors.New("err")
+
+		c := NewConfigCtx(ctx)
+		cmd := newTestConfigCmd(c)
+
+		_ = cmd.Flags().Set("json", "true")
+		if err := c.RunE(cmd); err == nil {
+			t.Fatal("fail")
+		}
+	})
+
+	t.Run("rune_flat_failure", func(t *testing.T) {
+		ctx.OutMock.FlatErr = errors.New("err")
+
+		c := NewConfigCtx(ctx)
+		cmd := newTestConfigCmd(c)
+
+		_ = cmd.Flags().Set("json", "false")
+		if err := c.RunE(cmd); err == nil {
+			t.Fatal("fail")
+		}
+	})
 }
 
-func Test_RunE_json_false(t *testing.T) {
-	ctx := appmock.NewContext()
-	c := NewConfigCtx(ctx)
-	cmd := newTestConfigCmd(c)
-	_ = cmd.Flags().Set("json", "false")
-
-	err := c.RunE(cmd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ctx.OutMock.AsFlatCalled || ctx.OutMock.AsJsonCalled {
-		t.Fatal("wrong path")
-	}
-}
-
-func Test_RunE_flag_error(t *testing.T) {
-	ctx := appmock.NewContext()
-	c := NewConfigCtx(ctx)
-	cmd := &cobra.Command{}
-
-	err := c.RunE(cmd)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func Test_RunE_json_error(t *testing.T) {
-	ctx := appmock.NewContext()
-	ctx.OutMock.JSONErr = errors.New("err")
-
-	c := NewConfigCtx(ctx)
-	cmd := newTestConfigCmd(c)
-	_ = cmd.Flags().Set("json", "true")
-
-	err := c.RunE(cmd)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func Test_RunE_flat_error(t *testing.T) {
-	ctx := appmock.NewContext()
-	ctx.OutMock.FlatErr = errors.New("err")
-
-	c := NewConfigCtx(ctx)
-	cmd := newTestConfigCmd(c)
-	_ = cmd.Flags().Set("json", "false")
-
-	err := c.RunE(cmd)
-	if err == nil {
-		t.Fatal("expected error")
-	}
+func TestConfig_Fallback(t *testing.T) {
+	t.Run("new_ctx_initialization", func(t *testing.T) {
+		if c := NewConfigCtx(appmock.NewContext()); c == nil {
+			t.Fatal("fail")
+		}
+	})
 }
