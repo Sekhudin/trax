@@ -38,96 +38,69 @@ func writeTempInvalidConfig(t *testing.T) string {
 	return fp
 }
 
-func TestLoadConfig_ConfigFileProvided(t *testing.T) {
-	t.Run("should load successfully when valid config file is provided", func(t *testing.T) {
+func TestLoadConfig_Success(t *testing.T) {
+	t.Run("load_provided_file", func(t *testing.T) {
 		resetViper()
+		fp := writeTempConfig(t, "formatter: prettier")
 
-		fp := writeTempConfig(t, `
-formatter: prettier
-routes:
-  strategy: custom
-`)
-
-		err := LoadConfig(fp)
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+		if err := LoadConfig(fp); err != nil {
+			t.Fatalf("expected_no_error: %v", err)
 		}
 	})
 
-	t.Run("should return wrapped error when config file is invalid", func(t *testing.T) {
+	t.Run("load_default_file", func(t *testing.T) {
 		resetViper()
+		dir := t.TempDir()
 
-		fp := writeTempInvalidConfig(t)
+		oldWd, _ := os.Getwd()
+		defer os.Chdir(oldWd)
+		os.Chdir(dir)
 
-		err := LoadConfig(fp)
-		if err == nil {
-			t.Fatal("expected error, got nil")
+		content := []byte("formatter: prettier")
+		os.WriteFile(filepath.Join(dir, "trax.yaml"), content, 0o644)
+
+		if err := LoadConfig(""); err != nil {
+			t.Fatalf("expected_no_error: %v", err)
 		}
 	})
 
-	t.Run("should error when config file path does not exist", func(t *testing.T) {
+	t.Run("handle_missing_default", func(t *testing.T) {
 		resetViper()
-
-		err := LoadConfig("/path/does/not/exist.yaml")
-		if err == nil {
-			t.Fatal("expected error for not found config file, ")
+		if err := LoadConfig(""); err != nil {
+			t.Fatalf("expected_nil_error: %v", err)
 		}
 	})
 }
 
-func TestLoadConfig_DefaultSearchPath(t *testing.T) {
-	t.Run("should not error when no config file found in default path", func(t *testing.T) {
+func TestLoadConfig_Error(t *testing.T) {
+	t.Run("invalid_yaml_format", func(t *testing.T) {
 		resetViper()
+		fp := writeTempInvalidConfig(t)
 
-		dir := t.TempDir()
-		oldWd, _ := os.Getwd()
-		defer os.Chdir(oldWd)
-
-		os.Chdir(dir)
-
-		err := LoadConfig("")
-		if err != nil {
-			t.Fatalf("expected nil error, got %v", err)
+		if err := LoadConfig(fp); err == nil {
+			t.Fatal("expected_error_invalid_yaml")
 		}
 	})
 
-	t.Run("should load config when trax.yaml exists in current directory", func(t *testing.T) {
+	t.Run("missing_custom_path", func(t *testing.T) {
 		resetViper()
-
-		dir := t.TempDir()
-		oldWd, _ := os.Getwd()
-		defer os.Chdir(oldWd)
-
-		os.Chdir(dir)
-
-		if err := os.WriteFile(filepath.Join(dir, "trax.yaml"), []byte(`
-formatter: prettier
-`), 0o644); err != nil {
-			t.Fatalf("failed to write config: %v", err)
-		}
-
-		err := LoadConfig("")
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+		if err := LoadConfig("/non/existent/trax.yaml"); err == nil {
+			t.Fatal("expected_error_not_found")
 		}
 	})
 
-	t.Run("should return error when trax.yaml is invalid", func(t *testing.T) {
+	t.Run("invalid_default_content", func(t *testing.T) {
 		resetViper()
-
 		dir := t.TempDir()
+
 		oldWd, _ := os.Getwd()
 		defer os.Chdir(oldWd)
-
 		os.Chdir(dir)
 
-		if err := os.WriteFile(filepath.Join(dir, "trax.yaml"), []byte("invalid: [yaml"), 0o644); err != nil {
-			t.Fatalf("failed to write invalid config: %v", err)
-		}
+		os.WriteFile(filepath.Join(dir, "trax.yaml"), []byte("invalid: ["), 0o644)
 
-		err := LoadConfig("")
-		if err == nil {
-			t.Fatal("expected error, got nil")
+		if err := LoadConfig(""); err == nil {
+			t.Fatal("expected_error_corrupt_file")
 		}
 	})
 }
