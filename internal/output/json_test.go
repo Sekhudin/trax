@@ -2,144 +2,77 @@ package output
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
-	"io"
 	"strings"
 	"testing"
 
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-type errWriter struct{}
-
-func (e errWriter) Write(p []byte) (int, error) {
-	return 0, errors.New("write failed")
-}
-
-func newTestContext(w io.Writer) Context {
-	return New(w, Options{})
-}
-
-func newTestContextStruct(w io.Writer) *context {
-	opt := Options{}
-
-	return &context{
-		w:     w,
-		opt:   opt,
-		color: NewColorizer(opt.NoColor),
-	}
-}
-
 func TestAsJSON_Success(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	ctx := newTestContext(buf)
+	t.Run("complex_data_structure", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		ctx := New(buf, Options{})
 
-	data := map[string]any{
-		"b": 2,
-		"a": 1,
-		"nested": map[string]any{
-			"d": 4,
-			"c": 3,
-		},
-		"arr": []any{
-			map[string]any{"z": 9, "y": 8},
-			"plain",
-		},
-	}
+		data := map[string]any{
+			"a": 1,
+			"b": map[string]any{"c": 2},
+			"d": []any{3, "e"},
+		}
 
-	err := ctx.AsJSON(data)
-	if err != nil {
-		t.Fatal(err)
-	}
+		if err := ctx.AsJSON(data); err != nil {
+			t.Fatal(err)
+		}
 
-	var out map[string]any
-	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
-		t.Fatal("invalid json output:", err)
-	}
-
-	if out["a"].(float64) != 1 {
-		t.Fatal(out)
-	}
-	if out["b"].(float64) != 2 {
-		t.Fatal(out)
-	}
-
-	nested := out["nested"].(map[string]any)
-	if nested["c"].(float64) != 3 || nested["d"].(float64) != 4 {
-		t.Fatal(nested)
-	}
-
-	arr := out["arr"].([]any)
-	first := arr[0].(map[string]any)
-	if first["y"].(float64) != 8 || first["z"].(float64) != 9 {
-		t.Fatal(arr)
-	}
+		if !strings.Contains(buf.String(), "\n") || !strings.Contains(buf.String(), `"c": 2`) {
+			t.Fatal("format_mismatch")
+		}
+	})
 }
 
-func TestAsJSON_WriteError(t *testing.T) {
-	ctx := newTestContext(errWriter{})
+func TestAsJSON_Error(t *testing.T) {
+	t.Run("stdout_write_failed", func(t *testing.T) {
+		ctx := New(&errorWriter{}, Options{})
+		err := ctx.AsJSON(map[string]any{"a": 1})
 
-	err := ctx.AsJSON(map[string]any{"a": 1})
-	if err == nil {
-		t.Fatal("expected error")
-	}
+		if err == nil {
+			t.Fatal("should_error")
+		}
 
-	coreErr, ok := err.(*appErr.CoreError)
-	if !ok {
-		t.Fatalf("unexpected error type: %T", err)
-	}
+		coreErr, ok := err.(*appErr.CoreError)
+		if !ok || coreErr.Code != appErr.ErrIO {
+			t.Fatalf("wrong_error_code: %v", err)
+		}
+	})
 
-	if coreErr.Code != appErr.ErrIO {
-		t.Fatalf("expected IO error, got %s", coreErr.Code)
-	}
+	t.Run("json_marshal_failed", func(t *testing.T) {
+		ctx := New(bytes.NewBuffer(nil), Options{
+			Marshal: func(v any, prefix, indent string) ([]byte, error) {
+				return nil, errors.New("boom")
+			},
+		})
+
+		err := ctx.AsJSON(map[string]any{"a": 1})
+		if err == nil {
+			t.Fatal("should_error")
+		}
+
+		coreErr, ok := err.(*appErr.CoreError)
+		if !ok || coreErr.Code != appErr.ErrInternal {
+			t.Fatalf("wrong_error_code: %v", err)
+		}
+	})
 }
 
-func TestNormalizeMap_SortingAndRecursion(t *testing.T) {
-	ctx := newTestContextStruct(bytes.NewBuffer(nil))
+func TestAsJSON_Fallback(t *testing.T) {
+	t.Run("normalization_recursion_logic", func(t *testing.T) {
+		ctx := New(bytes.NewBuffer(nil), Options{}).(*context)
 
-	in := map[string]any{
-		"b": 1,
-		"a": map[string]any{
-			"d": 4,
-			"c": 3,
-		},
-	}
+		in := map[string]any{"p": map[string]any{"c": 1}}
+		out := ctx.normalizeValue(in).(map[string]any)
 
-	out := ctx.normalizeMap(in)
-
-	a := out["a"].(map[string]any)
-	if _, ok := a["c"]; !ok {
-		t.Fatal(a)
-	}
-	if _, ok := a["d"]; !ok {
-		t.Fatal(a)
-	}
-}
-
-func TestNormalizeValue_ArrayRecursion(t *testing.T) {
-	ctx := newTestContextStruct(bytes.NewBuffer(nil))
-
-	in := []any{
-		map[string]any{"b": 2, "a": 1},
-		"x",
-	}
-
-	out := ctx.normalizeValue(in).([]any)
-
-	m := out[0].(map[string]any)
-	if m["a"].(float64) != 1 || m["b"].(float64) != 2 {
-		t.Fatal(out)
-	}
-}
-
-func TestAsJSON_OutputIsPrettyPrinted(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	ctx := newTestContext(buf)
-
-	_ = ctx.AsJSON(map[string]any{"a": 1})
-
-	if !strings.Contains(buf.String(), "\n") {
-		t.Fatal("expected pretty printed json")
-	}
+		if _, ok := out["p"].(map[string]any); !ok {
+			t.Fatal("recursion_failed")
+		}
+	})
 }

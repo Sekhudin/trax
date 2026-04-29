@@ -5,10 +5,34 @@ import (
 	"testing"
 )
 
-func TestColorizer_NoColor(t *testing.T) {
+func TestColorizer_Success(t *testing.T) {
+	c := NewColorizer(false)
+
+	t.Run("wrap_ansi_codes", func(t *testing.T) {
+		out := c.Red("fail")
+		if !strings.HasPrefix(out, "\x1b[31m") || !strings.Contains(out, "fail") || !strings.HasSuffix(out, "\x1b[0m") {
+			t.Fatal("wrong_ansi_formatting")
+		}
+	})
+
+	t.Run("apply_bold_code", func(t *testing.T) {
+		if !strings.Contains(c.Bold("x"), "\x1b[1m") {
+			t.Fatal("wrong_bold_code")
+		}
+	})
+
+	t.Run("sprint_multiple_values", func(t *testing.T) {
+		out := c.Green("a", 1, "b")
+		if !strings.Contains(out, "a1b") {
+			t.Fatal("failed_join_values")
+		}
+	})
+}
+
+func TestColorizer_Fallback(t *testing.T) {
 	c := NewColorizer(true)
 
-	t.Run("all methods return plain text", func(t *testing.T) {
+	t.Run("return_plain_text", func(t *testing.T) {
 		input := []any{"hello", " ", "world"}
 
 		tests := []struct {
@@ -25,44 +49,11 @@ func TestColorizer_NoColor(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			out := tt.fn(input...)
-			if out != "hello world" {
-				t.Fatalf("%s unexpected: %s", tt.name, out)
-			}
-		}
-	})
-}
-
-func TestColorizer_WithColor(t *testing.T) {
-	c := NewColorizer(false)
-
-	t.Run("red contains ansi code", func(t *testing.T) {
-		out := c.Red("fail")
-
-		if !strings.Contains(out, "\x1b[31m") {
-			t.Fatal(out)
-		}
-		if !strings.Contains(out, "fail") {
-			t.Fatal(out)
-		}
-		if !strings.HasSuffix(out, "\x1b[0m") {
-			t.Fatal(out)
-		}
-	})
-
-	t.Run("bold uses code 1", func(t *testing.T) {
-		out := c.Bold("x")
-
-		if !strings.Contains(out, "\x1b[1m") {
-			t.Fatal(out)
-		}
-	})
-
-	t.Run("multiple values are sprinted", func(t *testing.T) {
-		out := c.Green("a", 1, "b")
-
-		if !strings.Contains(out, "a1b") {
-			t.Fatal(out)
+			t.Run(tt.name, func(t *testing.T) {
+				if out := tt.fn(input...); out != "hello world" {
+					t.Fatalf("expected_plain_got_%q", out)
+				}
+			})
 		}
 	})
 }

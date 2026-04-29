@@ -12,7 +12,7 @@ import (
 func (c *context) AsJSON(data map[string]any) error {
 	normalized := c.normalizeMap(data)
 
-	b, err := json.MarshalIndent(normalized, "", "  ")
+	b, err := c.marshal(normalized, "", "  ")
 	if err != nil {
 		return appErr.NewInternalError("json", "failed to marshal data to json", err)
 	}

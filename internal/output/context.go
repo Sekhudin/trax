@@ -21,6 +21,7 @@ type Options struct {
 	JSON    bool
 	Quiet   bool
 	NoColor bool
+	Marshal func(v any, prefix, indent string) ([]byte, error)
 }
 
 type Context interface {
@@ -35,9 +36,10 @@ type Context interface {
 }
 
 type context struct {
-	w     io.Writer
-	opt   Options
-	color Colorizer
+	w       io.Writer
+	opt     Options
+	color   Colorizer
+	marshal func(v any, prefix, indent string) ([]byte, error)
 }
 
 type notification struct {
@@ -47,10 +49,17 @@ type notification struct {
 }
 
 func New(w io.Writer, opt Options) Context {
+	marshal := json.MarshalIndent
+
+	if opt.Marshal != nil {
+		marshal = opt.Marshal
+	}
+
 	return &context{
-		w:     w,
-		opt:   opt,
-		color: NewColorizer(opt.NoColor),
+		w:       w,
+		opt:     opt,
+		color:   NewColorizer(opt.NoColor),
+		marshal: marshal,
 	}
 }
 
@@ -94,9 +103,9 @@ func (c *context) notifyJSON(level Level, scope, msg string) {
 		Message: msg,
 	}
 
-	b, err := json.MarshalIndent(n, "", "  ")
+	b, err := c.marshal(n, "", "  ")
 	if err != nil {
-		fmt.Fprintf(c.w, `{"level":"error","message":"failed to marshal json"}\n`)
+		fmt.Fprintln(c.w, `{"level":"error","message":"failed to marshal json"}`)
 		return
 	}
 
