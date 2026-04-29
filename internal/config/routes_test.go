@@ -10,78 +10,53 @@ func resetViper() {
 	viper.Reset()
 }
 
-func TestRoutes_DefaultValues(t *testing.T) {
-	resetViper()
+func TestRoutes_Success(t *testing.T) {
+	t.Run("read_all_values", func(t *testing.T) {
+		resetViper()
 
-	cfg := New()
-	routes := cfg.Routes()
+		viper.Set("routes.strategy", "tree")
+		viper.Set("routes.root", "/app")
+		viper.Set("routes.no-deps", true)
+		viper.Set("routes.file", "routes.go")
+		viper.Set("routes.output", "generated")
+		viper.Set("routes.prefix", "/api")
+		viper.Set("routes.symbols.param", ":")
+		viper.Set("routes.symbols.wildcard", "*")
+		viper.Set("routes.symbols.root", "/")
 
-	if routes == nil {
-		t.Fatal("expected routes config not nil")
-	}
+		cfg := New()
+		routes := cfg.Routes()
 
-	if routes.Symbols == nil {
-		t.Fatal("expected symbols not nil")
-	}
+		if routes.Strategy != "tree" || routes.Root != "/app" || !routes.NoDeps {
+			t.Fatal("failed_read_toplevel")
+		}
+		if routes.File != "routes.go" || routes.Output != "generated" || routes.Prefix != "/api" {
+			t.Fatal("failed_read_paths")
+		}
 
-	if routes.Strategy != "" ||
-		routes.Root != "" ||
-		routes.File != "" ||
-		routes.Output != "" ||
-		routes.Prefix != "" ||
-		routes.NoDeps != false ||
-		routes.Symbols.Param != "" ||
-		routes.Symbols.Wildcard != "" ||
-		routes.Symbols.Root != "" {
-		t.Fatal("expected all default zero values")
-	}
+		if routes.Symbols.Param != ":" || routes.Symbols.Wildcard != "*" || routes.Symbols.Root != "/" {
+			t.Fatal("failed_read_symbols")
+		}
+	})
 }
 
-func TestRoutes_ReadsAllValuesFromViper(t *testing.T) {
-	resetViper()
+func TestRoutes_Fallback(t *testing.T) {
+	t.Run("return_zero_values", func(t *testing.T) {
+		resetViper()
 
-	viper.Set("routes.strategy", "tree")
-	viper.Set("routes.root", "/app")
-	viper.Set("routes.no-deps", true)
-	viper.Set("routes.file", "routes.go")
-	viper.Set("routes.output", "generated")
-	viper.Set("routes.prefix", "/api")
+		cfg := New()
+		routes := cfg.Routes()
 
-	viper.Set("routes.symbols.param", ":")
-	viper.Set("routes.symbols.wildcard", "*")
-	viper.Set("routes.symbols.root", "/")
+		if routes == nil {
+			t.Fatal("expected_non_nil")
+		}
 
-	cfg := New()
-	routes := cfg.Routes()
+		if routes.Symbols == nil {
+			t.Fatal("symbols_is_nil")
+		}
 
-	// top level
-	if routes.Strategy != "tree" {
-		t.Fatal("strategy not read correctly")
-	}
-	if routes.Root != "/app" {
-		t.Fatal("root not read correctly")
-	}
-	if routes.NoDeps != true {
-		t.Fatal("no-deps not read correctly")
-	}
-	if routes.File != "routes.go" {
-		t.Fatal("file not read correctly")
-	}
-	if routes.Output != "generated" {
-		t.Fatal("output not read correctly")
-	}
-	if routes.Prefix != "/api" {
-		t.Fatal("prefix not read correctly")
-	}
-
-	// symbols
-	if routes.Symbols.Param != ":" {
-		t.Fatal("param symbol not read correctly")
-	}
-	if routes.Symbols.Wildcard != "*" {
-		t.Fatal("wildcard symbol not read correctly")
-	}
-	if routes.Symbols.Root != "/" {
-		t.Fatal("root symbol not read correctly")
-	}
+		if routes.Strategy != "" || routes.NoDeps != false || routes.Symbols.Param != "" {
+			t.Fatal("expected_defaults")
+		}
+	})
 }

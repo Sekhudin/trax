@@ -5,29 +5,25 @@ import (
 	"testing"
 )
 
-func TestNew_ReturnsConfigImplementation(t *testing.T) {
-	cfg := New()
+func TestNew_Success(t *testing.T) {
+	t.Run("return_valid_instance", func(t *testing.T) {
+		cfg := New()
+		if cfg == nil {
+			t.Fatal("expected_non_nil")
+		}
+	})
 
-	if cfg == nil {
-		t.Fatal("expected non-nil config")
-	}
-}
+	t.Run("implement_config_interface", func(t *testing.T) {
+		var _ Config = New()
+	})
 
-func TestNew_ImplementsConfigInterface(t *testing.T) {
-	var cfg Config = New()
+	t.Run("return_concrete_type", func(t *testing.T) {
+		cfg := New()
+		expected := "*config.config"
+		actual := reflect.TypeOf(cfg).String()
 
-	if cfg == nil {
-		t.Fatal("expected config to implement Config interface")
-	}
-}
-
-func TestNew_ReturnsConcreteTypeConfig(t *testing.T) {
-	cfg := New()
-
-	expectedType := "*config.config"
-	actualType := reflect.TypeOf(cfg).String()
-
-	if actualType != expectedType {
-		t.Fatalf("expected type %s, got %s", expectedType, actualType)
-	}
+		if actual != expected {
+			t.Fatalf("expected_%s_got_%s", expected, actual)
+		}
+	})
 }
