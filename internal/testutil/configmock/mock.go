@@ -7,12 +7,25 @@ type Config struct {
 	RoutesFn     func() *config.RoutesConfig
 }
 
+func (c *Config) Reset() {
+	c.RoutesCalled = false
+
+	c.RoutesFn = func() *config.RoutesConfig {
+		return &config.RoutesConfig{
+			Symbols: &config.RoutesSymbols{},
+		}
+	}
+}
+
 func (c *Config) Routes() *config.RoutesConfig {
 	c.RoutesCalled = true
 	if c.RoutesFn != nil {
 		return c.RoutesFn()
 	}
-	return &config.RoutesConfig{}
+
+	return &config.RoutesConfig{
+		Symbols: &config.RoutesSymbols{},
+	}
 }
 
 type Writer struct {
@@ -23,18 +36,31 @@ type Writer struct {
 	FileFn  func() string
 }
 
-func (c *Writer) Write() error {
-	c.WriteCalled = true
-	if c.WriteFn != nil {
-		return c.WriteFn()
+func (w *Writer) Reset() {
+	w.WriteCalled = false
+	w.FileCalled = false
+
+	w.WriteFn = func() error {
+		return nil
+	}
+
+	w.FileFn = func() string {
+		return ""
+	}
+}
+
+func (w *Writer) Write() error {
+	w.WriteCalled = true
+	if w.WriteFn != nil {
+		return w.WriteFn()
 	}
 	return nil
 }
 
-func (c *Writer) File() string {
-	c.FileCalled = true
-	if c.FileFn != nil {
-		return c.FileFn()
+func (w *Writer) File() string {
+	w.FileCalled = true
+	if w.FileFn != nil {
+		return w.FileFn()
 	}
 	return ""
 }

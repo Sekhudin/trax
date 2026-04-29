@@ -1,6 +1,10 @@
 package routesmock
 
-import "github.com/sekhudin/trax/modules/routes"
+import (
+	"errors"
+
+	"github.com/sekhudin/trax/modules/routes"
+)
 
 type RoutesConfig struct {
 	LoadCalled            bool
@@ -10,6 +14,24 @@ type RoutesConfig struct {
 	LoadFn            func() (*routes.Config, error)
 	IsFileStrategyFn  func() bool
 	IsValidStrategyFn func() bool
+}
+
+func (r *RoutesConfig) Reset() {
+	r.LoadCalled = false
+	r.IsFileStrategyCalled = false
+	r.IsValidStrategyCalled = false
+
+	r.LoadFn = func() (*routes.Config, error) {
+		return &routes.Config{}, nil
+	}
+
+	r.IsFileStrategyFn = func() bool {
+		return false
+	}
+
+	r.IsValidStrategyFn = func() bool {
+		return false
+	}
 }
 
 func (r *RoutesConfig) Load() (*routes.Config, error) {
@@ -41,36 +63,62 @@ type RawBuilder struct {
 	BuildFn     func() ([]routes.RawRoute, error)
 }
 
-func (b *RawBuilder) Build() ([]routes.RawRoute, error) {
-	b.BuildCalled = true
-	if b.BuildFn != nil {
-		return b.BuildFn()
+func (r *RawBuilder) Reset() {
+	r.BuildCalled = false
+
+	r.BuildFn = func() ([]routes.RawRoute, error) {
+		return []routes.RawRoute{}, nil
+	}
+}
+
+func (r *RawBuilder) Build() ([]routes.RawRoute, error) {
+	r.BuildCalled = true
+	if r.BuildFn != nil {
+		return r.BuildFn()
 	}
 	return []routes.RawRoute{}, nil
 }
 
 type RouteBuilder struct {
 	BuildCalled bool
-	BuildFn     func() ([]routes.Route, error)
+	BuildFn     func([]routes.RawRoute) ([]routes.Route, error)
 }
 
-func (b *RouteBuilder) Build(r []routes.RawRoute) ([]routes.Route, error) {
-	b.BuildCalled = true
-	if b.BuildFn != nil {
-		return b.BuildFn()
+func (r *RouteBuilder) Reset() {
+	r.BuildCalled = false
+
+	r.BuildFn = func([]routes.RawRoute) ([]routes.Route, error) {
+		return []routes.Route{}, nil
+	}
+}
+
+func (r *RouteBuilder) Build(rws []routes.RawRoute) ([]routes.Route, error) {
+	r.BuildCalled = true
+	if r.BuildFn != nil {
+		return r.BuildFn(rws)
 	}
 	return []routes.Route{}, nil
 }
 
 type TreeBuilder struct {
 	BuildCalled bool
-	BuildFn     func() (map[string]*routes.Node, routes.TreeSelector, error)
+	BuildFn     func([]routes.Route) (map[string]*routes.Node, routes.TreeSelector, error)
 }
 
-func (b *TreeBuilder) Build(r []routes.Route) (map[string]*routes.Node, routes.TreeSelector, error) {
-	b.BuildCalled = true
-	if b.BuildFn != nil {
-		return b.BuildFn()
+func (t *TreeBuilder) Reset() {
+	t.BuildCalled = false
+
+	t.BuildFn = func([]routes.Route) (map[string]*routes.Node, routes.TreeSelector, error) {
+		return map[string]*routes.Node{}, func(selector string) (map[string]any, error) {
+			return map[string]any{}, nil
+		}, nil
+	}
+}
+
+func (t *TreeBuilder) Build(rs []routes.Route) (map[string]*routes.Node, routes.TreeSelector, error) {
+	t.BuildCalled = true
+	if t.BuildFn != nil {
+		return t.BuildFn(rs)
 	}
 
 	return map[string]*routes.Node{}, func(selector string) (map[string]any, error) {
@@ -78,22 +126,38 @@ func (b *TreeBuilder) Build(r []routes.Route) (map[string]*routes.Node, routes.T
 	}, nil
 }
 
-type Builder struct {
+type TemplateBuilder struct {
 	BuildCalled bool
-	BuildFn     func() (routes.BuildResult, error)
+	BuildFn     func() (string, error)
 }
 
-func (b *Builder) Build() (routes.BuildResult, error) {
-	b.BuildCalled = true
-	if b.BuildFn != nil {
-		return b.BuildFn()
+func (t *TemplateBuilder) Reset() {
+	t.BuildCalled = false
+
+	t.BuildFn = func() (string, error) {
+		return "content", nil
 	}
-	return &BuildResult{}, nil
+}
+
+func (t *TemplateBuilder) Build() (string, error) {
+	t.BuildCalled = true
+	if t.BuildFn != nil {
+		return t.BuildFn()
+	}
+	return "content", nil
 }
 
 type Generator struct {
 	GenerateCalled bool
 	GenerateFn     func(string) error
+}
+
+func (g *Generator) Reset() {
+	g.GenerateCalled = false
+
+	g.GenerateFn = func(path string) error {
+		return nil
+	}
 }
 
 func (g *Generator) Generate(path string) error {
@@ -104,17 +168,25 @@ func (g *Generator) Generate(path string) error {
 	return nil
 }
 
-type Template struct {
+type Builder struct {
 	BuildCalled bool
-	BuildFn     func() (string, error)
+	BuildFn     func() (routes.BuildResult, error)
 }
 
-func (t *Template) Build() (string, error) {
-	t.BuildCalled = true
-	if t.BuildFn != nil {
-		return t.BuildFn()
+func (b *Builder) Reset() {
+	b.BuildCalled = false
+
+	b.BuildFn = func() (routes.BuildResult, error) {
+		return &BuildResult{}, nil
 	}
-	return "", nil
+}
+
+func (b *Builder) Build() (routes.BuildResult, error) {
+	b.BuildCalled = true
+	if b.BuildFn != nil {
+		return b.BuildFn()
+	}
+	return &BuildResult{}, nil
 }
 
 type BuildResult struct {
@@ -131,34 +203,68 @@ type BuildResult struct {
 	SelectFn   func(key string) (map[string]any, error)
 }
 
-func (r *BuildResult) Raw() []routes.RawRoute {
-	r.RawCalled = true
-	if r.RawFn != nil {
-		return r.RawFn()
+func (b *BuildResult) Reset() {
+	b.RawCalled = false
+	b.RoutesCalled = false
+	b.TreeCalled = false
+	b.SelectorCalled = false
+	b.SelectCalled = false
+
+	b.RawFn = func() []routes.RawRoute {
+		return []routes.RawRoute{}
+	}
+
+	b.RoutesFn = func() []routes.Route {
+		return []routes.Route{}
+	}
+
+	b.TreeFn = func() map[string]*routes.Node {
+		return map[string]*routes.Node{}
+	}
+
+	b.SelectorFn = func() routes.TreeSelector {
+		return func(selector string) (map[string]any, error) {
+			return map[string]any{}, nil
+		}
+	}
+
+	b.SelectFn = func(key string) (map[string]any, error) {
+		if key == "fail" {
+			return nil, errors.New("fail")
+		}
+
+		return map[string]any{}, nil
+	}
+}
+
+func (b *BuildResult) Raw() []routes.RawRoute {
+	b.RawCalled = true
+	if b.RawFn != nil {
+		return b.RawFn()
 	}
 	return []routes.RawRoute{}
 }
 
-func (r *BuildResult) Routes() []routes.Route {
-	r.RoutesCalled = true
-	if r.RoutesFn != nil {
-		return r.RoutesFn()
+func (b *BuildResult) Routes() []routes.Route {
+	b.RoutesCalled = true
+	if b.RoutesFn != nil {
+		return b.RoutesFn()
 	}
 	return []routes.Route{}
 }
 
-func (r *BuildResult) Tree() map[string]*routes.Node {
-	r.TreeCalled = true
-	if r.TreeFn != nil {
-		return r.TreeFn()
+func (b *BuildResult) Tree() map[string]*routes.Node {
+	b.TreeCalled = true
+	if b.TreeFn != nil {
+		return b.TreeFn()
 	}
 	return map[string]*routes.Node{}
 }
 
-func (r *BuildResult) Selector() routes.TreeSelector {
-	r.SelectorCalled = true
-	if r.SelectorFn != nil {
-		return r.SelectorFn()
+func (b *BuildResult) Selector() routes.TreeSelector {
+	b.SelectorCalled = true
+	if b.SelectorFn != nil {
+		return b.SelectorFn()
 	}
 
 	return func(selector string) (map[string]any, error) {
@@ -166,10 +272,15 @@ func (r *BuildResult) Selector() routes.TreeSelector {
 	}
 }
 
-func (r *BuildResult) Select(key string) (map[string]any, error) {
-	r.SelectCalled = true
-	if r.SelectFn != nil {
-		return r.SelectFn(key)
+func (b *BuildResult) Select(key string) (map[string]any, error) {
+	b.SelectCalled = true
+	if b.SelectFn != nil {
+		return b.SelectFn(key)
 	}
+
+	if key == "fail" {
+		return nil, errors.New("fail")
+	}
+
 	return map[string]any{}, nil
 }

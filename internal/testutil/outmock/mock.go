@@ -10,6 +10,16 @@ type Color struct {
 	BoldCalled   bool
 }
 
+func (c *Color) Reset() {
+	c.RedCalled = false
+	c.YellowCalled = false
+	c.GreenCalled = false
+	c.BlueCalled = false
+	c.CyanCalled = false
+	c.GrayCalled = false
+	c.BoldCalled = false
+}
+
 func (c *Color) Red(v ...any) string {
 	c.RedCalled = true
 	return ""
@@ -55,8 +65,22 @@ type Out struct {
 	AsFlatCalled bool
 	AsJsonCalled bool
 
-	JSONErr error
 	FlatErr error
+	JSONErr error
+}
+
+func (o *Out) Reset() {
+	o.SuccessCalled = false
+	o.InfoCalled = false
+	o.WarnCalled = false
+	o.ErrorCalled = false
+	o.CauseCalled = false
+
+	o.AsFlatCalled = false
+	o.AsJsonCalled = false
+
+	o.FlatErr = nil
+	o.JSONErr = nil
 }
 
 func (o *Out) Success(scope, msg string) {

@@ -5,6 +5,14 @@ type Runner struct {
 	RunFn     func() error
 }
 
+func (r *Runner) Reset() {
+	r.RunCalled = false
+
+	r.RunFn = func() error {
+		return nil
+	}
+}
+
 func (r *Runner) Run(command map[string]any) error {
 	r.RunCalled = true
 	if r.RunFn != nil {

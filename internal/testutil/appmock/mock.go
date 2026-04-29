@@ -27,13 +27,24 @@ func NewContext() *Context {
 	}
 }
 
+func (c *Context) Reset() {
+	c.ApplyOptionsCalled = false
+	c.ColorCalled = false
+	c.OutCalled = false
+	c.RunnerCalled = false
+
+	c.OutMock = &outmock.Out{}
+	c.ColorMock = &outmock.Color{}
+	c.RunnerMock = &runnermock.Runner{}
+}
+
 func (c *Context) ApplyOptions(cmd *cobra.Command, opt output.Options) {
 	c.ApplyOptionsCalled = true
 }
 
 func (c *Context) Color() output.Colorizer {
 	c.ColorCalled = true
-	return &outmock.Color{}
+	return c.ColorMock
 }
 
 func (c *Context) Out() output.Context {
@@ -43,5 +54,5 @@ func (c *Context) Out() output.Context {
 
 func (c *Context) Runner() runner.Runner {
 	c.RunnerCalled = true
-	return &runnermock.Runner{}
+	return c.RunnerMock
 }
