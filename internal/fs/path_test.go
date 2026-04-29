@@ -5,80 +5,75 @@ import (
 	"testing"
 )
 
-func TestOSPath_Methods(t *testing.T) {
+func TestOSPath_Success(t *testing.T) {
 	p := NewPath()
 
-	t.Run("Join should combine paths correctly", func(t *testing.T) {
+	t.Run("join_path_elements", func(t *testing.T) {
 		out := p.Join("a", "b", "c.txt")
 		expected := filepath.Join("a", "b", "c.txt")
-
 		if out != expected {
-			t.Fatalf("expected %q, got %q", expected, out)
+			t.Fatalf("wrong_join_result")
 		}
 	})
 
-	t.Run("Dir should return directory of path", func(t *testing.T) {
+	t.Run("get_directory_path", func(t *testing.T) {
 		path := filepath.Join("a", "b", "c.txt")
-		out := p.Dir(path)
-		expected := filepath.Dir(path)
-
-		if out != expected {
-			t.Fatalf("expected %q, got %q", expected, out)
+		if p.Dir(path) != filepath.Dir(path) {
+			t.Fatal("wrong_dir_result")
 		}
 	})
 
-	t.Run("Base should return last element", func(t *testing.T) {
-		path := filepath.Join("a", "b", "c.txt")
-		out := p.Base(path)
-		expected := "c.txt"
-
-		if out != expected {
-			t.Fatalf("expected %q, got %q", expected, out)
+	t.Run("get_base_name", func(t *testing.T) {
+		if p.Base("a/b/c.txt") != "c.txt" {
+			t.Fatal("wrong_base_result")
 		}
 	})
 
-	t.Run("Ext should return file extension", func(t *testing.T) {
-		path := "file.test.ts"
-		out := p.Ext(path)
-
-		if out != ".ts" {
-			t.Fatalf("expected .ts, got %q", out)
-		}
-	})
-
-	t.Run("Ext should return empty string when no extension", func(t *testing.T) {
-		out := p.Ext("Makefile")
-
-		if out != "" {
-			t.Fatalf("expected empty extension, got %q", out)
+	t.Run("get_file_extension", func(t *testing.T) {
+		if p.Ext("file.test.ts") != ".ts" {
+			t.Fatal("wrong_ext_result")
 		}
 	})
 }
 
-func TestIsAllowedExt(t *testing.T) {
+func TestOSPath_Fallback(t *testing.T) {
+	p := NewPath()
+
+	t.Run("handle_no_extension", func(t *testing.T) {
+		if p.Ext("Makefile") != "" {
+			t.Fatal("expected_empty_ext")
+		}
+	})
+}
+
+func TestIsAllowedExt_Success(t *testing.T) {
 	allowed := []string{".ts", ".tsx", ".js"}
 
-	t.Run("should return true when extension is allowed", func(t *testing.T) {
+	t.Run("allow_valid_extension", func(t *testing.T) {
 		if !IsAllowedExt(".ts", allowed) {
-			t.Fatalf("expected extension to be allowed")
+			t.Fatal("should_be_allowed")
 		}
 	})
+}
 
-	t.Run("should return false when extension is not allowed", func(t *testing.T) {
+func TestIsAllowedExt_Fallback(t *testing.T) {
+	allowed := []string{".ts", ".tsx", ".js"}
+
+	t.Run("reject_invalid_extension", func(t *testing.T) {
 		if IsAllowedExt(".go", allowed) {
-			t.Fatalf("expected extension to not be allowed")
+			t.Fatal("should_be_rejected")
 		}
 	})
 
-	t.Run("should return false when allowed list is empty", func(t *testing.T) {
+	t.Run("handle_empty_list", func(t *testing.T) {
 		if IsAllowedExt(".ts", []string{}) {
-			t.Fatalf("expected false when allowed list is empty")
+			t.Fatal("should_be_false")
 		}
 	})
 
-	t.Run("should be case sensitive", func(t *testing.T) {
+	t.Run("check_case_sensitivity", func(t *testing.T) {
 		if IsAllowedExt(".TS", allowed) {
-			t.Fatalf("expected case sensitive check")
+			t.Fatal("should_be_sensitive")
 		}
 	})
 }

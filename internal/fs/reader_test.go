@@ -6,59 +6,55 @@ import (
 	"testing"
 )
 
-func TestOSReader_Read(t *testing.T) {
+func TestOSReader_Success(t *testing.T) {
 	r := NewReader()
 
-	t.Run("should read file successfully", func(t *testing.T) {
+	t.Run("read_file_content", func(t *testing.T) {
 		dir := t.TempDir()
 		fp := filepath.Join(dir, "file.txt")
 		content := []byte("hello world")
 
-		if err := os.WriteFile(fp, content, 0o644); err != nil {
-			t.Fatalf("failed to create file: %v", err)
-		}
+		os.WriteFile(fp, content, 0o644)
 
 		b, err := r.Read(fp)
 		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+			t.Fatalf("unexpected_read_error: %v", err)
 		}
 
 		if string(b) != "hello world" {
-			t.Fatalf("expected content 'hello world', got %q", string(b))
+			t.Fatalf("content_mismatch: %q", string(b))
 		}
 	})
+}
 
-	t.Run("should return error when file does not exist", func(t *testing.T) {
+func TestOSReader_Error(t *testing.T) {
+	r := NewReader()
+
+	t.Run("file_not_found", func(t *testing.T) {
 		dir := t.TempDir()
 		fp := filepath.Join(dir, "missing.txt")
 
-		_, err := r.Read(fp)
-		if err == nil {
-			t.Fatalf("expected error for missing file")
+		if _, err := r.Read(fp); err == nil {
+			t.Fatal("expected_missing_error")
 		}
 	})
 
-	t.Run("should return error when path is a directory", func(t *testing.T) {
+	t.Run("is_a_directory", func(t *testing.T) {
 		dir := t.TempDir()
-
-		_, err := r.Read(dir)
-		if err == nil {
-			t.Fatalf("expected error when reading a directory")
+		if _, err := r.Read(dir); err == nil {
+			t.Fatal("expected_directory_error")
 		}
 	})
 
-	t.Run("should return error when permission denied", func(t *testing.T) {
+	t.Run("permission_denied", func(t *testing.T) {
 		dir := t.TempDir()
-		fp := filepath.Join(dir, "restricted.txt")
+		fp := filepath.Join(dir, "no_access.txt")
 
-		if err := os.WriteFile(fp, []byte("secret"), 0o000); err != nil {
-			t.Fatalf("failed to create restricted file: %v", err)
-		}
+		os.WriteFile(fp, []byte("secret"), 0o000)
 		defer os.Chmod(fp, 0o644)
 
-		_, err := r.Read(fp)
-		if err == nil {
-			t.Fatalf("expected permission error")
+		if _, err := r.Read(fp); err == nil {
+			t.Fatal("expected_permission_error")
 		}
 	})
 }

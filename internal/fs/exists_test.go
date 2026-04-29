@@ -6,52 +6,47 @@ import (
 	"testing"
 )
 
-func TestOSExister_Exists(t *testing.T) {
+func TestOSExister_Success(t *testing.T) {
 	ex := NewExister()
 
-	t.Run("should return true when file exists", func(t *testing.T) {
+	t.Run("detect_existing_file", func(t *testing.T) {
 		dir := t.TempDir()
 		fp := filepath.Join(dir, "file.txt")
-
-		if err := os.WriteFile(fp, []byte("hello"), 0o644); err != nil {
-			t.Fatalf("failed to create temp file: %v", err)
-		}
+		os.WriteFile(fp, []byte("hello"), 0o644)
 
 		if !ex.Exists(fp) {
-			t.Fatalf("expected file to exist")
+			t.Fatal("failed_detect_file")
 		}
 	})
 
-	t.Run("should return true when path is a directory", func(t *testing.T) {
+	t.Run("detect_existing_directory", func(t *testing.T) {
 		dir := t.TempDir()
-
 		if !ex.Exists(dir) {
-			t.Fatalf("expected directory to exist")
+			t.Fatal("failed_detect_dir")
 		}
 	})
+}
 
-	t.Run("should return false when path does not exist", func(t *testing.T) {
+func TestOSExister_Fallback(t *testing.T) {
+	ex := NewExister()
+
+	t.Run("handle_missing_path", func(t *testing.T) {
 		dir := t.TempDir()
 		fp := filepath.Join(dir, "notfound.txt")
-
 		if ex.Exists(fp) {
-			t.Fatalf("expected path to not exist")
+			t.Fatal("should_return_false")
 		}
 	})
 
-	t.Run("should return false when no permission to stat path", func(t *testing.T) {
+	t.Run("handle_permission_denied", func(t *testing.T) {
 		dir := t.TempDir()
 		sub := filepath.Join(dir, "restricted")
-
-		if err := os.Mkdir(sub, 0o000); err != nil {
-			t.Fatalf("failed to create restricted dir: %v", err)
-		}
+		os.Mkdir(sub, 0o000)
 		defer os.Chmod(sub, 0o755)
 
 		fp := filepath.Join(sub, "file.txt")
-
 		if ex.Exists(fp) {
-			t.Fatalf("expected false due to permission issue")
+			t.Fatal("should_fail_permission")
 		}
 	})
 }
