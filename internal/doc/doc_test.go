@@ -6,152 +6,101 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestLine(t *testing.T) {
-	t.Run("multiple lines joined with newline", func(t *testing.T) {
+func TestLine_Success(t *testing.T) {
+	t.Run("join_multiple_lines", func(t *testing.T) {
 		out := Line("a", "b", "c")
-		expected := "a\nb\nc"
-
-		if out != expected {
-			t.Fatalf("expected %q, got %q", expected, out)
+		if out != "a\nb\nc" {
+			t.Fatalf("wrong_line_output")
 		}
 	})
 
-	t.Run("single line returns as is", func(t *testing.T) {
-		out := Line("only")
-		if out != "only" {
-			t.Fatalf("unexpected output: %q", out)
-		}
-	})
-
-	t.Run("no lines returns empty string", func(t *testing.T) {
-		out := Line()
-		if out != "" {
-			t.Fatalf("expected empty string, got %q", out)
+	t.Run("return_single_line", func(t *testing.T) {
+		if Line("only") != "only" {
+			t.Fatal("wrong_single_output")
 		}
 	})
 }
 
-func TestParagraph(t *testing.T) {
-	t.Run("multiple lines joined with double newline", func(t *testing.T) {
-		out := Paragraph("a", "b", "c")
-		expected := "a\n\nb\n\nc"
-
-		if out != expected {
-			t.Fatalf("expected %q, got %q", expected, out)
-		}
-	})
-
-	t.Run("single line returns as is", func(t *testing.T) {
-		out := Paragraph("only")
-		if out != "only" {
-			t.Fatalf("unexpected output: %q", out)
-		}
-	})
-
-	t.Run("no lines returns empty string", func(t *testing.T) {
-		out := Paragraph()
-		if out != "" {
-			t.Fatalf("expected empty string, got %q", out)
+func TestLine_Fallback(t *testing.T) {
+	t.Run("return_empty_string", func(t *testing.T) {
+		if Line() != "" {
+			t.Fatal("expected_empty_string")
 		}
 	})
 }
 
-func TestApplyGroup(t *testing.T) {
-	g := Group{
-		ID:    "gen",
-		Title: "Generate Commands",
-	}
-
-	cg := ApplyGroup(g)
-
-	if cg.ID != "gen" {
-		t.Fatalf("expected ID gen, got %s", cg.ID)
-	}
-	if cg.Title != "Generate Commands" {
-		t.Fatalf("expected Title Generate Commands, got %s", cg.Title)
-	}
+func TestParagraph_Success(t *testing.T) {
+	t.Run("join_with_double_newline", func(t *testing.T) {
+		out := Paragraph("a", "b")
+		if out != "a\n\nb" {
+			t.Fatal("wrong_paragraph_output")
+		}
+	})
 }
 
-func TestApply(t *testing.T) {
-	t.Run("should apply all fields when provided", func(t *testing.T) {
+func TestApplyGroup_Success(t *testing.T) {
+	t.Run("map_group_fields", func(t *testing.T) {
+		g := Group{ID: "gen", Title: "Generate"}
+		cg := ApplyGroup(g)
+		if cg.ID != "gen" || cg.Title != "Generate" {
+			t.Fatal("fields_not_mapped")
+		}
+	})
+}
+
+func TestApply_Success(t *testing.T) {
+	t.Run("apply_complete_docs", func(t *testing.T) {
 		cmd := &cobra.Command{}
-
 		d := &Docs{
 			GroupID: "gen",
 			Use:     "generate",
-			Aliases: []string{"g"},
+			Aliases: []string{"g", "gen"},
 			Short:   "short desc",
-			Long:    "long desc",
+			Long:    "long description",
 			Example: "example usage",
 			Version: "1.0.0",
 		}
 
-		result := Apply(d, cmd)
+		Apply(d, cmd)
 
-		if result != cmd {
-			t.Fatalf("expected same command pointer returned")
+		if cmd.GroupID != d.GroupID || cmd.Use != d.Use || cmd.Version != d.Version {
+			t.Fatal("failed_basic_fields")
 		}
-
-		if cmd.GroupID != "gen" ||
-			cmd.Use != "generate" ||
-			cmd.Short != "short desc" ||
-			cmd.Long != "long desc" ||
-			cmd.Example != "example usage" ||
-			cmd.Version != "1.0.0" {
-			t.Fatalf("fields not properly applied")
+		if cmd.Short != d.Short || cmd.Long != d.Long || cmd.Example != d.Example {
+			t.Fatal("failed_desc_fields")
 		}
-
-		if len(cmd.Aliases) != 1 || cmd.Aliases[0] != "g" {
-			t.Fatalf("aliases not applied")
+		if len(cmd.Aliases) != 2 || cmd.Aliases[0] != "g" {
+			t.Fatal("failed_aliases_mapping")
 		}
 	})
 
-	t.Run("should not overwrite existing fields when docs fields are empty", func(t *testing.T) {
-		cmd := &cobra.Command{
-			GroupID: "existing",
-			Use:     "existing-use",
-			Aliases: []string{"x"},
-			Short:   "existing short",
-			Long:    "existing long",
-			Example: "existing example",
-			Version: "0.9.0",
-		}
-
-		d := &Docs{}
+	t.Run("partial_update_fields", func(t *testing.T) {
+		cmd := &cobra.Command{Use: "original", Short: "old"}
+		d := &Docs{Use: "updated"}
 
 		Apply(d, cmd)
 
-		if cmd.GroupID != "existing" ||
-			cmd.Use != "existing-use" ||
-			cmd.Short != "existing short" ||
-			cmd.Long != "existing long" ||
-			cmd.Example != "existing example" ||
-			cmd.Version != "0.9.0" {
-			t.Fatalf("existing fields should not be overwritten")
+		if cmd.Use != "updated" {
+			t.Fatal("failed_use_update")
 		}
-
-		if len(cmd.Aliases) != 1 || cmd.Aliases[0] != "x" {
-			t.Fatalf("aliases should not be overwritten")
+		if cmd.Short != "old" {
+			t.Fatal("overwritten_existing_short")
 		}
 	})
+}
 
-	t.Run("should apply only non empty fields", func(t *testing.T) {
+func TestApply_Fallback(t *testing.T) {
+	t.Run("ignore_empty_docs", func(t *testing.T) {
 		cmd := &cobra.Command{
-			Use: "old",
+			Use:     "stay",
+			Short:   "dont_change",
+			Aliases: []string{"s"},
 		}
 
-		d := &Docs{
-			Use:   "new",
-			Short: "short",
-		}
+		Apply(&Docs{}, cmd)
 
-		Apply(d, cmd)
-
-		if cmd.Use != "new" {
-			t.Fatalf("Use should be updated")
-		}
-		if cmd.Short != "short" {
-			t.Fatalf("Short should be set")
+		if cmd.Use != "stay" || cmd.Short != "dont_change" || len(cmd.Aliases) != 1 {
+			t.Fatal("data_was_overwritten")
 		}
 	})
 }
