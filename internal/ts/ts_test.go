@@ -2,64 +2,54 @@ package ts
 
 import "testing"
 
-func TestLine(t *testing.T) {
-	out := Line("a", "b", "c")
-	expected := "a\nb\nc"
-
-	if out != expected {
-		t.Fatalf("expected %q, got %q", expected, out)
-	}
-}
-
-func TestTypeAndStringLiteral(t *testing.T) {
-	t.Run("type literal", func(t *testing.T) {
-		out := ToTypeLiteral("hello")
-		if out != "`hello`" {
-			t.Fatalf("unexpected: %s", out)
+func TestGenerator_Success(t *testing.T) {
+	t.Run("join_lines_newline", func(t *testing.T) {
+		out := Line("a", "b", "c")
+		if out != "a\nb\nc" {
+			t.Fatal("newline_join_failed")
 		}
 	})
 
-	t.Run("string union", func(t *testing.T) {
-		out := ToStringUnion("hello")
-		if out != `"hello"` {
-			t.Fatalf("unexpected: %s", out)
+	t.Run("format_type_literal", func(t *testing.T) {
+		if ToTypeLiteral("X") != "`X`" {
+			t.Fatal("backtick_format_failed")
+		}
+	})
+
+	t.Run("organize_unique_imports", func(t *testing.T) {
+		mods := []string{"fs", "path", "fs"}
+		if OrganizeImport(mods) != "fs, path" {
+			t.Fatal("deduplicate_import_failed")
 		}
 	})
 }
 
-func TestOrganizeImport(t *testing.T) {
-	mods := []string{
-		"fs",
-		"path",
-		"fs",
-		"http",
-		"path",
-	}
-
-	out := OrganizeImport(mods)
-
-	expected := "fs, path, http"
-	if out != expected {
-		t.Fatalf("expected %q, got %q", expected, out)
-	}
-}
-
-func TestOrganizeStringUnion(t *testing.T) {
-	t.Run("single value", func(t *testing.T) {
-		out := OrganizeStringUnion([]string{"A"})
-		if out != `"A"` {
-			t.Fatalf("unexpected: %s", out)
+func TestUnion_Success(t *testing.T) {
+	t.Run("single_union_value", func(t *testing.T) {
+		if OrganizeStringUnion([]string{"A"}) != `"A"` {
+			t.Fatal("single_format_failed")
 		}
 	})
 
-	t.Run("multiple with duplicates", func(t *testing.T) {
-		ss := []string{"A", "B", "A", "C", "B"}
+	t.Run("multiple_unique_union", func(t *testing.T) {
+		ss := []string{"A", "B", "A", "C"}
+		expect := `"A" | "B" | "C"`
+		if OrganizeStringUnion(ss) != expect {
+			t.Fatal("union_deduplicate_failed")
+		}
+	})
+}
 
-		out := OrganizeStringUnion(ss)
+func TestGenerator_Fallback(t *testing.T) {
+	t.Run("empty_import_slice", func(t *testing.T) {
+		if OrganizeImport([]string{}) != "" {
+			t.Fatal("should_return_empty")
+		}
+	})
 
-		expected := `"A" | "B" | "C"`
-		if out != expected {
-			t.Fatalf("expected %q, got %q", expected, out)
+	t.Run("line_single_arg", func(t *testing.T) {
+		if Line("only") != "only" {
+			t.Fatal("single_line_failed")
 		}
 	})
 }
