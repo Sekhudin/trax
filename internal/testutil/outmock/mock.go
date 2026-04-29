@@ -46,11 +46,11 @@ func (c *Color) Bold(v ...any) string {
 }
 
 type Out struct {
-	SuccesCalled bool
-	InfoCalled   bool
-	WarnCalled   bool
-	ErrorCalled  bool
-	CauseCalled  bool
+	SuccessCalled bool
+	InfoCalled    bool
+	WarnCalled    bool
+	ErrorCalled   bool
+	CauseCalled   bool
 
 	AsFlatCalled bool
 	AsJsonCalled bool
@@ -60,7 +60,7 @@ type Out struct {
 }
 
 func (o *Out) Success(scope, msg string) {
-	o.SuccesCalled = true
+	o.SuccessCalled = true
 }
 
 func (o *Out) Info(scope, msg string) {

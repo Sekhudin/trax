@@ -14,3 +14,27 @@ func (c *Config) Routes() *config.RoutesConfig {
 	}
 	return &config.RoutesConfig{}
 }
+
+type Writer struct {
+	WriteCalled bool
+	FileCalled  bool
+
+	WriteFn func() error
+	FileFn  func() string
+}
+
+func (c *Writer) Write() error {
+	c.WriteCalled = true
+	if c.WriteFn != nil {
+		return c.WriteFn()
+	}
+	return nil
+}
+
+func (c *Writer) File() string {
+	c.FileCalled = true
+	if c.FileFn != nil {
+		return c.FileFn()
+	}
+	return ""
+}
