@@ -15,114 +15,88 @@ func newHandler(buf *bytes.Buffer) Handler {
 	return New(ctx)
 }
 
-func TestHandler_Print_NilError(t *testing.T) {
+func TestHandler_Print_Success(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	h := newHandler(buf)
 
-	h.Print(nil)
+	t.Run("print_core_error", func(t *testing.T) {
+		buf.Reset()
+		err := &appErr.CoreError{Scope: "exec", Message: "failed"}
+		h.Print(err)
+		if !strings.Contains(buf.String(), "(exec)") {
+			t.Fatal("missing_scope_output")
+		}
+	})
 
-	if buf.Len() != 0 {
-		t.Fatal("expected no output")
-	}
+	t.Run("print_with_cause", func(t *testing.T) {
+		buf.Reset()
+		err := &appErr.CoreError{Message: "fail", Err: errors.New("root")}
+		h.Print(err)
+		if !strings.Contains(buf.String(), "root") {
+			t.Fatal("missing_cause_output")
+		}
+	})
+
+	t.Run("print_runtime_error", func(t *testing.T) {
+		buf.Reset()
+		h.Print(errors.New("boom"))
+		if !strings.Contains(buf.String(), "(runtime)") {
+			t.Fatal("missing_runtime_label")
+		}
+	})
 }
 
-func TestHandler_Print_NonCoreError(t *testing.T) {
+func TestHandler_Print_Fallback(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	h := newHandler(buf)
 
-	h.Print(errors.New("boom"))
+	t.Run("handle_nil_error", func(t *testing.T) {
+		buf.Reset()
+		h.Print(nil)
+		if buf.Len() != 0 {
+			t.Fatal("expected_no_output")
+		}
+	})
 
-	out := buf.String()
-
-	if !strings.Contains(out, "(runtime)") {
-		t.Fatal(out)
-	}
-	if !strings.Contains(out, "boom") {
-		t.Fatal(out)
-	}
+	t.Run("default_to_core", func(t *testing.T) {
+		buf.Reset()
+		err := &appErr.CoreError{Message: "oops"}
+		h.Print(err)
+		if !strings.Contains(buf.String(), "(core)") {
+			t.Fatal("missing_core_default")
+		}
+	})
 }
 
-func TestHandler_Print_CoreError_WithScope(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	h := newHandler(buf)
-
-	err := &appErr.CoreError{
-		Code:    appErr.ErrRuntime,
-		Scope:   "exec",
-		Message: "failed",
-	}
-
-	h.Print(err)
-
-	out := buf.String()
-
-	if !strings.Contains(out, "(exec)") {
-		t.Fatal(out)
-	}
-	if !strings.Contains(out, "failed") {
-		t.Fatal(out)
-	}
-}
-
-func TestHandler_Print_CoreError_EmptyScopeDefaultsToCore(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	h := newHandler(buf)
-
-	err := &appErr.CoreError{
-		Code:    appErr.ErrRuntime,
-		Message: "oops",
-	}
-
-	h.Print(err)
-
-	out := buf.String()
-
-	if !strings.Contains(out, "(core)") {
-		t.Fatal(out)
-	}
-}
-
-func TestHandler_Print_CoreError_WithCause(t *testing.T) {
-	buf := bytes.NewBuffer(nil)
-	h := newHandler(buf)
-
-	root := errors.New("root cause")
-	err := &appErr.CoreError{
-		Code:    appErr.ErrRuntime,
-		Scope:   "exec",
-		Message: "failed",
-		Err:     root,
-	}
-
-	h.Print(err)
-
-	out := buf.String()
-
-	if !strings.Contains(out, "root cause") {
-		t.Fatal(out)
-	}
-	if !strings.Contains(out, "(cause)") {
-		t.Fatal(out)
-	}
-}
-
-func TestHandler_ExitCode_Mapping(t *testing.T) {
+func TestHandler_ExitCode_Success(t *testing.T) {
 	h := newHandler(bytes.NewBuffer(nil))
 
-	tests := []struct {
-		err  error
-		want int
-	}{
-		{&appErr.CoreError{Code: appErr.ErrValidation}, 2},
-		{&appErr.CoreError{Code: appErr.ErrConfigNotFound}, 3},
-		{&appErr.CoreError{Code: appErr.ErrConfigLoad}, 4},
-		{&appErr.CoreError{Code: appErr.ErrRuntime}, 1},
-		{errors.New("x"), 1},
-	}
-
-	for _, tt := range tests {
-		if h.ExitCode(tt.err) != tt.want {
-			t.Fatalf("expected %d got %d", tt.want, h.ExitCode(tt.err))
+	t.Run("map_validation_code", func(t *testing.T) {
+		code := h.ExitCode(&appErr.CoreError{Code: appErr.ErrValidation})
+		if code != 2 {
+			t.Fatal("wrong_exit_code")
 		}
-	}
+	})
+
+	t.Run("map_config_codes", func(t *testing.T) {
+		if h.ExitCode(&appErr.CoreError{Code: appErr.ErrConfigNotFound}) != 3 {
+			t.Fatal("wrong_notfound_code")
+		}
+		if h.ExitCode(&appErr.CoreError{Code: appErr.ErrConfigLoad}) != 4 {
+			t.Fatal("wrong_load_code")
+		}
+	})
+}
+
+func TestHandler_ExitCode_Fallback(t *testing.T) {
+	h := newHandler(bytes.NewBuffer(nil))
+
+	t.Run("default_exit_code", func(t *testing.T) {
+		if h.ExitCode(errors.New("x")) != 1 {
+			t.Fatal("should_be_1")
+		}
+		if h.ExitCode(&appErr.CoreError{Code: appErr.ErrRuntime}) != 1 {
+			t.Fatal("should_be_1")
+		}
+	})
 }
