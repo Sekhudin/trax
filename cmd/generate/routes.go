@@ -13,25 +13,35 @@ import (
 	"github.com/spf13/viper"
 )
 
-type generateroutes struct {
-	ctx app.Context
-	cfg *routes.Config
+type RoutesCtx interface {
+	PreRunE(cmd *cobra.Command) error
+	RunE() error
+	PostRunE(cmd *cobra.Command) error
 }
 
-func NewRoutesCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
-	g := generateroutes{ctx: ctx}
+type routesctx struct {
+	ctx            app.Context
+	cfg            *routes.Config
+	config         func() config.Config
+	routeConfig    func(*config.RoutesConfig) routes.RoutesConfig
+	routeBuilder   func(*routes.Config) routes.Builder
+	routeTemplate  func([]routes.Route, routes.TreeSelector, *routes.Config) routes.Template
+	routeGenerator func(routes.Template) routes.Generator
+}
+
+func NewRoutesCmd(docs *doc.Docs, c RoutesCtx) *cobra.Command {
 	cmd := doc.Apply(docs, &cobra.Command{
 		Args: cobra.NoArgs,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return g.preRunE(cmd)
+			return c.PreRunE(cmd)
 		},
 
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return g.runE()
+			return c.RunE()
 		},
 
 		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return g.postRunE(cmd)
+			return c.PostRunE(cmd)
 		},
 	})
 
@@ -52,7 +62,33 @@ func NewRoutesCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
 	return cmd
 }
 
-func (g *generateroutes) preRunE(cmd *cobra.Command) error {
+func NewRoutesCtx(ctx app.Context) RoutesCtx {
+	return &routesctx{
+		ctx: ctx,
+		cfg: nil,
+		config: func() config.Config {
+			return config.New()
+		},
+		routeConfig: func(c *config.RoutesConfig) routes.RoutesConfig {
+			return routes.NewConfig(c)
+		},
+		routeBuilder: func(c *routes.Config) routes.Builder {
+			return routes.NewBuilder(c)
+		},
+		routeTemplate: func(r []routes.Route, ts routes.TreeSelector, c *routes.Config) routes.Template {
+			return routes.NewTemplate(routes.TemplateDeps{
+				Routes:   r,
+				Selector: ts,
+				Cfg:      c,
+			})
+		},
+		routeGenerator: func(t routes.Template) routes.Generator {
+			return routes.NewGenerator(fs.NewOSWriter(), t)
+		},
+	}
+}
+
+func (c *routesctx) PreRunE(cmd *cobra.Command) error {
 	flags := cmd.Flags()
 	viper.BindPFlag("routes.strategy", flags.Lookup("strategy"))
 	viper.BindPFlag("routes.root", flags.Lookup("root"))
@@ -62,37 +98,31 @@ func (g *generateroutes) preRunE(cmd *cobra.Command) error {
 
 	viper.BindPFlag("formatter", flags.Lookup("formatter"))
 
-	cfg, err := routes.NewConfig(config.New().Routes()).Load()
+	cfg, err := c.routeConfig(c.config().Routes()).Load()
 	if err != nil {
 		return err
 	}
 
-	g.setCfg(cfg)
-	g.ctx.Out().Info("routes", fmt.Sprintf("using %q strategy (no-deps: %v)\n", g.cfg.Strategy, g.ctx.Color().Blue(g.cfg.NoDeps)))
+	c.cfg = cfg
+	c.ctx.Out().Info("routes", fmt.Sprintf("using %q strategy (no-deps: %v)\n", cfg.Strategy, c.ctx.Color().Blue(cfg.NoDeps)))
 
 	return nil
 }
 
-func (g *generateroutes) runE() error {
-	b := routes.NewBuilder(g.cfg)
-	r, err := b.Build()
+func (c *routesctx) RunE() error {
+	r, err := c.routeBuilder(c.cfg).Build()
 	if err != nil {
 		return err
 	}
 
-	gen := routes.NewGenerator(
-		fs.NewOSWriter(),
-		routes.NewTemplate(routes.TemplateDeps{
-			Routes:   r.Routes,
-			Selector: r.Selector,
-			Cfg:      g.cfg,
-		}),
-	)
-
-	return gen.Generate(g.cfg.Output.Full)
+	return c.routeGenerator(c.routeTemplate(
+		r.Routes(),
+		r.Selector(),
+		c.cfg,
+	)).Generate(c.cfg.Output.Full)
 }
 
-func (g *generateroutes) postRunE(cmd *cobra.Command) error {
+func (c *routesctx) PostRunE(cmd *cobra.Command) error {
 	flags := cmd.Flags()
 	noformat, err := flags.GetBool("no-format")
 	if err != nil {
@@ -103,16 +133,12 @@ func (g *generateroutes) postRunE(cmd *cobra.Command) error {
 		f := viper.GetString("formatter")
 		sf := viper.GetStringMap(fmt.Sprintf("formatters.%s", f))
 
-		if err := g.ctx.Runner().Run(sf); err != nil {
+		if err := c.ctx.Runner().Run(sf); err != nil {
 			return err
 		}
 	}
 
-	g.ctx.Out().Success("routes", fmt.Sprintf("routes written %s", g.ctx.Color().Green(g.cfg.Output.Filename)))
+	c.ctx.Out().Success("routes", fmt.Sprintf("routes written %s", c.ctx.Color().Green(c.cfg.Output.Filename)))
 
 	return nil
-}
-
-func (g *generateroutes) setCfg(cfg *routes.Config) {
-	g.cfg = cfg
 }

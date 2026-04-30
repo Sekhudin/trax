@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/sekhudin/trax/internal/app"
+	"github.com/sekhudin/trax/internal/config"
 	"github.com/sekhudin/trax/internal/doc"
 
 	"github.com/spf13/cobra"
@@ -13,26 +14,22 @@ import (
 	appErr "github.com/sekhudin/trax/internal/errors"
 )
 
-type generateconfig struct {
-	ctx        app.Context
-	cfgFormats map[string]struct{}
+type ConfigCtx interface {
+	RunE(cmd *cobra.Command) error
 }
 
-func NewConfigCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
-	g := generateconfig{
-		ctx: ctx,
-		cfgFormats: map[string]struct{}{
-			"json": {},
-			"toml": {},
-			"yaml": {},
-			"yml":  {},
-		},
-	}
+type configctx struct {
+	ctx         app.Context
+	cfgFormats  map[string]struct{}
+	cfgFilePath func(string) string
+	cfgWriter   func(string, bool) config.Writer
+}
 
+func NewConfigCmd(docs *doc.Docs, c ConfigCtx) *cobra.Command {
 	cmd := doc.Apply(docs, &cobra.Command{
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return g.runE(cmd)
+			return c.RunE(cmd)
 		},
 	})
 
@@ -43,17 +40,30 @@ func NewConfigCmd(docs *doc.Docs, ctx app.Context) *cobra.Command {
 	return cmd
 }
 
-func (g *generateconfig) runE(cmd *cobra.Command) error {
+func NewConfigCtx(ctx app.Context) ConfigCtx {
+	return &configctx{
+		ctx: ctx,
+		cfgFormats: map[string]struct{}{
+			"json": {},
+			"toml": {},
+			"yaml": {},
+			"yml":  {},
+		},
+		cfgFilePath: func(s string) string {
+			return filepath.Clean("trax." + s)
+		},
+		cfgWriter: func(s string, o bool) config.Writer {
+			return config.NewWriter(s, o, viper.SafeWriteConfigAs, viper.WriteConfigAs)
+		},
+	}
+}
+
+func (c *configctx) RunE(cmd *cobra.Command) error {
 	flags := cmd.Flags()
 
-	isOverride, err := flags.GetBool("override")
+	override, err := flags.GetBool("override")
 	if err != nil {
 		return err
-	}
-
-	writeConfig := viper.SafeWriteConfigAs
-	if isOverride {
-		writeConfig = viper.WriteConfigAs
 	}
 
 	format, err := flags.GetString("format")
@@ -61,24 +71,18 @@ func (g *generateconfig) runE(cmd *cobra.Command) error {
 		return err
 	}
 
-	if !g.isValidConfigFormat(format) {
+	if _, ok := c.cfgFormats[format]; !ok {
 		return appErr.NewValidationError("config", fmt.Sprintf(
 			"invalid value %q (allowed: %q, %q, or %q)", format, "json", "toml", "yaml",
 		))
 	}
 
-	cfgFile := filepath.Clean(fmt.Sprintf("trax.%s", format))
-	if err := writeConfig(cfgFile); err != nil {
-		return appErr.NewConfigLoadError("config", fmt.Sprintf("failed generate config: %q", cfgFile), err)
+	w := c.cfgWriter(c.cfgFilePath(format), override)
+	if err := w.Write(); err != nil {
+		return appErr.NewConfigLoadError("config", "failed generate config", err)
 	}
 
-	g.ctx.Out().Success("routes", fmt.Sprintf("config written %s", g.ctx.Color().Green(cfgFile)))
+	c.ctx.Out().Success("routes", fmt.Sprintf("config written %s", c.ctx.Color().Green(w.File())))
 
 	return nil
-}
-
-func (g *generateconfig) isValidConfigFormat(format string) bool {
-	_, ok := g.cfgFormats[format]
-
-	return ok
 }
