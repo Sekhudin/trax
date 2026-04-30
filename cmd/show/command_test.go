@@ -23,6 +23,10 @@ func TestShow_Success(t *testing.T) {
 		if d.Docs.Root.Use != "show" || d.Docs.Config.Use != "config" || d.Docs.Routes.Use != "routes" {
 			t.Fatal("fail")
 		}
+
+		if len(d.Docs.Root.Aliases) != 1 && d.Docs.Root.Aliases[0] != "s" {
+			t.Fatal("fail")
+		}
 	})
 
 	t.Run("build_command_tree", func(t *testing.T) {
