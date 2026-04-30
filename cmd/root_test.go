@@ -151,10 +151,10 @@ func TestExecute_Fallback(t *testing.T) {
 
 	t.Run("execute_error_path", func(t *testing.T) {
 		oldCmd := Command
-		oldHandler := ErrorHanler
+		oldHandler := ErrorHandler
 		defer func() {
 			Command = oldCmd
-			ErrorHanler = oldHandler
+			ErrorHandler = oldHandler
 		}()
 
 		Command = func() *cobra.Command {
@@ -166,7 +166,7 @@ func TestExecute_Fallback(t *testing.T) {
 		}
 
 		handlerCalled := false
-		ErrorHanler = func(err error, h clierror.Handler) {
+		ErrorHandler = func(err error, h clierror.Handler) {
 			handlerCalled = true
 		}
 

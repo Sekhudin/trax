@@ -42,7 +42,7 @@ var (
 	Command = func() *cobra.Command {
 		return New(app.New(output.Options{}))
 	}
-	ErrorHanler = func(err error, h clierror.Handler) {
+	ErrorHandler = func(err error, h clierror.Handler) {
 		h.Print(err)
 		os.Exit(h.ExitCode(err))
 	}
@@ -130,6 +130,6 @@ func Execute() {
 			NoColor: viper.GetBool("no-color"),
 		}))
 
-		ErrorHanler(err, cErr)
+		ErrorHandler(err, cErr)
 	}
 }

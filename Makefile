@@ -4,39 +4,39 @@ MODULE_PATH=github.com/Sekhudin/trax/cmd
 LDFLAGS=-ldflags "-X $(MODULE_PATH).Version=$(VERSION)"
 
 PACKAGES := $(shell go list ./... | grep -v /internal/testutil)
-MIN_COV=90
+PACKAGES_DEV := $(shell go list ./... | grep -v /internal/testutil)
+MIN_COV=100
 
 .PHONY: all build test clean run install help
 
-all: build test ## Build binary and run tests (default)
+all: build covc ## Build binary and run covc (default)
 
 build: ## Build the Trax binary with version injection
 	@echo "Building $(BINARY_NAME) version $(VERSION)..."
 	@mkdir -p bin
 	@go build $(LDFLAGS) -o bin/$(BINARY_NAME) main.go
-	@echo "✔ Build complete: bin/$(BINARY_NAME)"
-
-test: ## Run all unit tests
-	@echo "Running tests..."
-	@go test -v $(PACKAGES)
+	@echo -e "\033[32m✔\033[0m Build complete: \033[32mbin/$(BINARY_NAME)\033[0m"
 
 cov: ## Run all unit tests with coverage
 	@go test -cover $(PACKAGES) -coverprofile=coverage.out
 	@go tool cover -func=coverage.out
 
-covv: ## Run all unit tests with coverage (verbose)
-	@go test -v -cover $(PACKAGES) -coverprofile=coverage.out
+covd: ## Run all unit tests with coverage (development)
+	@go test -cover $(PACKAGES_DEV) -coverprofile=coverage.out
 	@go tool cover -func=coverage.out
 
-covc: cov ## Check if coverage is above ($(MIN_COV)%)
-	@echo "Checking coverage threshold (Min: $(MIN_COV)%)"
+covc: cov ## Check if coverage is above $(MIN_COV)%
+	@echo ""
+	@echo -e "\033[34mChecking coverage threshold\033[0m (\033[1mMin: $(MIN_COV)%\033[0m)"
+	@echo ""
 	@total_cov=$$(go tool cover -func=coverage.out | grep total | awk '{print $$3}' | sed 's/%//'); \
-	echo "Total coverage: $$total_cov%"; \
 	if [ $$(echo "$$total_cov < $(MIN_COV)" | bc -l) -ne 0 ]; then \
-		echo "✖ Coverage is below $(MIN_COV)%!"; \
+		echo -e "\033[31m✖\033[0m Target coverage not reached. \033[1mKeep grinding\033[0m!"; \
+		echo -e "  ↳ Coverage: \033[31m$$total_cov%\033[0m"; \
 		exit 1; \
 	else \
-		echo "✔ Coverage is above $(MIN_COV)%. Solid work!!"; \
+		echo -e "\033[32m✔\033[0m Minimum threshold satisfied. \033[1mKeep it up\033[0m!"; \
+		echo -e "  ↳ Coverage: \033[32m$$total_cov%\033[0m"; \
 	fi
 
 clean: ## Remove binary and build artifacts
@@ -56,5 +56,9 @@ install: ## Install binary to $GOPATH/bin
 help: ## Show this help message
 	@echo "Usage: make [target]"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; { \
+		help_msg = $$2; \
+		gsub(/\$$\(MIN_COV\)/, "$(MIN_COV)", help_msg); \
+		printf "\033[36m%-15s\033[0m %s\n", $$1, help_msg \
+	}'
 

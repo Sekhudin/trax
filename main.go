@@ -7,13 +7,21 @@ import (
 	"github.com/sekhudin/trax/cmd"
 )
 
-func main() {
-	defer func() {
+var (
+	Exit = func(code int) {
+		os.Exit(code)
+	}
+
+	Recover = func() {
 		if r := recover(); r != nil {
-			fmt.Fprintln(os.Stderr, "[BUG]", r)
-			os.Exit(1)
+			fmt.Fprintln(os.Stderr, "[INTERNAL ERROR]", r)
+			Exit(1)
 		}
-	}()
+	}
+)
+
+func main() {
+	defer Recover()
 
 	cmd.Execute()
 }
