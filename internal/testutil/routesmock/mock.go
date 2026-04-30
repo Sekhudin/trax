@@ -3,6 +3,8 @@ package routesmock
 import (
 	"errors"
 
+	"github.com/sekhudin/trax/internal/config"
+	"github.com/sekhudin/trax/internal/path"
 	"github.com/sekhudin/trax/modules/routes"
 )
 
@@ -11,15 +13,31 @@ type RoutesConfig struct {
 	IsFileStrategyCalled  bool
 	IsValidStrategyCalled bool
 
+	Config *routes.Config
+
 	LoadFn            func() (*routes.Config, error)
 	IsFileStrategyFn  func() bool
 	IsValidStrategyFn func() bool
+}
+
+func (r *RoutesConfig) Set() {
+	r.Config = &routes.Config{
+		Symbols: &config.RoutesSymbols{},
+		File:    &path.FilePath{},
+		Output:  &path.FilePath{},
+	}
 }
 
 func (r *RoutesConfig) Reset() {
 	r.LoadCalled = false
 	r.IsFileStrategyCalled = false
 	r.IsValidStrategyCalled = false
+
+	r.Config = &routes.Config{
+		Symbols: &config.RoutesSymbols{},
+		File:    &path.FilePath{},
+		Output:  &path.FilePath{},
+	}
 
 	r.LoadFn = func() (*routes.Config, error) {
 		return &routes.Config{}, nil
@@ -39,7 +57,14 @@ func (r *RoutesConfig) Load() (*routes.Config, error) {
 	if r.LoadFn != nil {
 		return r.LoadFn()
 	}
-	return &routes.Config{}, nil
+
+	r.Config = &routes.Config{
+		Symbols: &config.RoutesSymbols{},
+		File:    &path.FilePath{},
+		Output:  &path.FilePath{},
+	}
+
+	return r.Config, nil
 }
 
 func (r *RoutesConfig) IsFileStrategy() bool {

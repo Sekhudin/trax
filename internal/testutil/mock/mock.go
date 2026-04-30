@@ -1,10 +1,20 @@
 package mock
 
-type Mock interface {
+type SetableMock interface {
+	Set()
+}
+
+type ResetableMock interface {
 	Reset()
 }
 
-func Reset(mocks ...Mock) {
+func Set(mocks ...SetableMock) {
+	for _, mock := range mocks {
+		mock.Set()
+	}
+}
+
+func Reset(mocks ...ResetableMock) {
 	for _, mock := range mocks {
 		mock.Reset()
 	}
